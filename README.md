@@ -49,16 +49,22 @@ composer install
 cp .env.example .env
 ```
 
-创建数据库后导入初始结构：
+完成 `.env` 配置后执行安装器：
 
 ```bash
-mysql -u root -p moo_passport < database/schema.sql
-php database/apply_comments.php
-php database/setup_oidc_signing.php
+php install.php
 php start.php start
 ```
 
-启动前请修改 `.env` 中的数据库、Redis、邮件和站点地址。数据库增量脚本位于 `api/database/migrations`，现有数据库必须按文件名顺序执行。
+安装器会创建数据库结构、初始权限和 Scope、首个超级管理员、OIDC 加密主密钥及签名密钥。启动前请修改 `.env` 中的数据库、Redis、邮件和站点地址。
+
+自动化安装可通过 `--admin-username`、`--admin-email` 和 `--admin-display-name` 提供管理员资料，并通过临时环境变量 `MOO_INSTALL_ADMIN_PASSWORD` 提供密码。管理员密码不会写入 `.env`。检查已有数据库结构时执行：
+
+```bash
+php install.php --check
+```
+
+安装器只用于空数据库，不会覆盖已有数据。数据库增量脚本位于 `api/database/migrations`，已有数据库升级时必须按文件名顺序执行。
 
 ### 前端
 
