@@ -21,6 +21,14 @@ npm run dev
 
 默认由 Vite 启动开发服务器。API 代理和开发端口配置见 [`vite.config.js`](vite.config.js)。
 
+HTTP 客户端支持可选的 `VITE_API_BASE_URL`。前后端同域部署时无需创建 `.env`，请求会使用当前域名；前后端分域时复制 `.env.example` 为 `.env.production` 并填写完整 API 域名：
+
+```dotenv
+VITE_API_BASE_URL=https://api.example.com
+```
+
+该变量在构建时写入产物，修改后必须重新执行 `npm run build`。它只能存放公开地址，不能放密码、AppSecret 或其他机密。
+
 生产构建：
 
 ```bash

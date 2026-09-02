@@ -88,6 +88,110 @@ npm run build
 
 `composer check` 会执行 PHPStan、单元测试以及账号安全和 OAuth/OIDC 集成测试。
 
+## 服务器部署
+
+以前后端使用同一个域名 `id.niusir.com` 为例，推荐目录：
+
+```text
+/www/wwwroot/id.niusir.com/
+├── api/        # 后端源码，不能直接作为网站根目录
+└── web/
+    └── dist/   # 前端 npm run build 产物，作为网站根目录
+```
+
+在服务器构建前端：
+
+```bash
+cd /www/wwwroot/id.niusir.com/web
+npm install
+npm run build
+```
+
+宝塔网站的根目录指向 `/www/wwwroot/id.niusir.com/web/dist`。前端使用相对 API 地址，因此同域部署不需要前端 `.env`；Vite 的开发代理只在 `npm run dev` 时生效。
+
+Nginx 配置需要让前端路由回退到 `index.html`，并把后端路径转发到 Webman：
+
+```nginx
+location ^~ /.well-known/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_pass http://127.0.0.1:8787;
+}
+
+location ~ ^/(passport|oauth|admin/v1|api/v1|uploads)(/|$) {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_pass http://127.0.0.1:8787;
+}
+
+location / {
+    try_files $uri $uri/ /index.html;
+}
+
+location ~ \.php$ {
+    return 404;
+}
+
+location ~ /\. {
+    return 404;
+}
+```
+
+生产环境后端 `.env` 至少需要对应设置：
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://id.niusir.com
+OAUTH_ISSUER=https://id.niusir.com
+PASSPORT_WEB_URL=https://id.niusir.com
+SESSION_SECURE=true
+CORS_ALLOWED_ORIGINS=https://id.niusir.com
+TRUSTED_PROXIES=127.0.0.1
+HTTP_LISTEN=http://0.0.0.0:8787
+```
+
+`AUTH_COOKIE_DOMAIN` 留空即可使用更安全的当前主机 Cookie；只有明确需要跨子域共享登录态时才设置 Cookie 域。
+
+宝塔添加 Webman 服务时，启动命令使用：
+
+```bash
+php /www/wwwroot/id.niusir.com/api/start.php start
+```
+
+不要添加 `-d`，宝塔会负责进程守护。网站运行目录直接指向后端时必须是 `api/public`，不能暴露后端项目根目录；本项目采用前后端同域分流时，网站根目录应按上文指向 `web/dist`。完整操作可参考 [Webman 官方宝塔安装指南](https://www.workerman.net/doc/webman/bt-install.html)。
+
+### 启动失败与端口占用
+
+先检查服务状态和日志：
+
+```bash
+php start.php status
+tail -n 100 runtime/logs/webman.log
+```
+
+检查 8787 端口是否被占用：
+
+```bash
+ss -lntp | grep :8787
+# 或
+lsof -i :8787
+```
+
+如端口已被其他服务占用，可在 `api/.env` 中修改监听端口：
+
+```dotenv
+HTTP_LISTEN=http://0.0.0.0:8788
+```
+
+修改后重启 Webman，并把 Nginx 中的 `proxy_pass http://127.0.0.1:8787` 同步改为新端口。也可以直接修改 `api/config/process.php`，但生产环境推荐通过 `HTTP_LISTEN` 配置，避免升级代码时产生冲突。
+
 ## 生产安全
 
 - 使用 HTTPS，并设置 `APP_ENV=production`、`APP_DEBUG=false` 和 `SESSION_SECURE=true`。
