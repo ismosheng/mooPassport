@@ -1,0 +1,7 @@
+<script setup>
+defineProps({ eyebrow: { type: String, default: 'MOO PASSPORT ADMIN' }, title: { type: String, required: true }, description: { type: String, default: '' } })
+</script>
+<template><header class="dashboard-heading"><div><span>{{ eyebrow }}</span><h1>{{ title }}</h1><p>{{ description }}</p></div><div class="dashboard-heading__actions"><slot /></div></header></template>
+<style scoped>
+.dashboard-heading{display:flex;min-height:92px;padding:18px 20px;align-items:center;justify-content:space-between;gap:20px;border:1px solid var(--admin-border);border-radius:var(--admin-radius);background:var(--color-bg-surface);box-shadow:var(--admin-shadow)}.dashboard-heading>div:first-child{min-width:0}.dashboard-heading span{display:block;color:var(--color-primary);font-size:var(--admin-font-xs);font-weight:600;letter-spacing:.05em}.dashboard-heading h1{margin:3px 0 0;color:var(--admin-heading);font-size:var(--admin-font-xl);font-weight:600;line-height:1.35}.dashboard-heading p{margin:5px 0 0;color:var(--admin-muted);font-size:var(--admin-font-sm);line-height:var(--admin-line-normal)}.dashboard-heading__actions{display:flex;align-items:center;gap:8px;flex:none}.dashboard-heading__actions :deep(.n-button){font-size:var(--admin-font-sm);font-weight:500}@media(max-width:680px){.dashboard-heading{align-items:flex-start;flex-direction:column}.dashboard-heading__actions{width:100%}.dashboard-heading__actions :deep(.n-button){flex:1}}
+</style>

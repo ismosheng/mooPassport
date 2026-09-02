@@ -1,0 +1,8 @@
+<script setup>
+import { NIcon, NTag } from 'naive-ui'
+defineProps({ label: String, value: String, change: String, hint: String, tone: { type: String, default: 'primary' }, icon: [Object, Function] })
+</script>
+<template><article class="metric-card"><div class="metric-card__top"><span class="metric-card__icon" :class="`tone-${tone}`"><n-icon :component="icon" /></span><n-tag size="small" :type="change?.startsWith('-') ? 'error' : 'success'" round>{{ change }}</n-tag></div><strong>{{ value }}</strong><span class="metric-card__label">{{ label }}</span><small>{{ hint }}</small></article></template>
+<style scoped>
+.metric-card{display:grid;min-height:142px;padding:18px;border:1px solid var(--admin-border);border-radius:var(--admin-radius);background:var(--color-bg-surface);box-shadow:var(--admin-shadow);transition:transform .2s,border-color .2s,box-shadow .2s}.metric-card:hover{transform:translateY(-2px);border-color:rgba(44,130,255,.25);box-shadow:0 9px 24px rgba(15,23,42,.07)}.metric-card__top{display:flex;align-items:center;justify-content:space-between}.metric-card__icon{display:grid;width:38px;height:38px;place-items:center;border-radius:9px;background:var(--color-primary-soft);color:var(--color-primary)}.metric-card__icon .n-icon{font-size:20px}.metric-card strong{margin-top:13px;color:var(--admin-heading);font-size:20px;font-weight:600;line-height:1.2}.metric-card__label{margin-top:3px;color:var(--admin-heading);font-size:var(--admin-font-md);font-weight:500}.metric-card small{margin-top:5px;color:var(--admin-muted);font-size:var(--admin-font-xs)}.tone-success{color:var(--color-success);background:var(--color-success-soft)}.tone-warning{color:#f0a020;background:#fff5e6}.tone-info{color:#2080f0;background:#eaf4ff}
+</style>

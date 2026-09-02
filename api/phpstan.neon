@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - app
+        - config
+        - tests
+    # Webman's support\Model exposes legacy Query Builder PHPDoc that can be
+    # less specific than Eloquent's runtime return types.
+    treatPhpDocTypesAsCertain: false
+    tmpDir: runtime/phpstan

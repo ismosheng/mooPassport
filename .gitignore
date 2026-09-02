@@ -1,8 +1,10 @@
-/runtime
+api/runtime/
 /.idea
 /.vscode
-/vendor
+api/vendor/
+web/node_modules/
+web/dist/
 *.log
-.env
-/tests/tmp
-/tests/.phpunit.result.cache
+api/.env
+api/tests/tmp/
+api/tests/.phpunit.result.cache

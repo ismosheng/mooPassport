@@ -1,0 +1,15 @@
+import http from './http.js'
+
+export const login = (data) => http.post('/passport/v1/login', data)
+export const register = (data) => http.post('/passport/v1/register', data)
+export const verifyEmail = (token) => http.post('/passport/v1/email/verify', { token })
+export const resendVerification = (email) => http.post('/passport/v1/email/resend', { email })
+export const forgotPassword = (email) => http.post('/passport/v1/password/forgot', { email })
+export const resetPassword = (data) => http.post('/passport/v1/password/reset', data)
+export const changePassword = (data) => http.post('/passport/v1/password/change', data)
+export const listSessions = () => http.get('/passport/v1/sessions')
+export const revokeSession = (sessionId) => http.delete(`/passport/v1/sessions/${sessionId}`)
+export const revokeOtherSessions = () => http.post('/passport/v1/sessions/revoke-others')
+export const getCurrentUser = () => http.get('/passport/v1/me')
+export const updateProfile = (data) => http.put('/passport/v1/profile', data)
+export const logout = () => http.post('/passport/v1/logout')

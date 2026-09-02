@@ -1,0 +1,94 @@
+{
+  "name": "workerman/webman",
+  "type": "project",
+  "keywords": [
+    "high performance",
+    "http service"
+  ],
+  "homepage": "https://www.workerman.net",
+  "license": "MIT",
+  "description": "High performance HTTP Service Framework.",
+  "authors": [
+    {
+      "name": "walkor",
+      "email": "walkor@workerman.net",
+      "homepage": "https://www.workerman.net",
+      "role": "Developer"
+    }
+  ],
+  "support": {
+    "email": "walkor@workerman.net",
+    "issues": "https://github.com/walkor/webman/issues",
+    "forum": "https://wenda.workerman.net/",
+    "wiki": "https://workerman.net/doc/webman",
+    "source": "https://github.com/walkor/webman"
+  },
+  "require": {
+    "php": ">=8.4",
+    "workerman/webman-framework": "^2.1",
+    "monolog/monolog": "^2.0",
+    "league/oauth2-server": "^9.4",
+    "webman/database": "^2.1",
+    "nyholm/psr7": "~1.8.0",
+    "illuminate/pagination": "^13.29",
+    "illuminate/events": "^13.29",
+    "symfony/var-dumper": "^8.1",
+    "webman/validation": "^2.2",
+    "webman/console": "^2.2",
+    "webman/redis": "^2.1",
+    "symfony/uid": "^8.1",
+    "symfony/mailer": "^8.1",
+    "spomky-labs/otphp": "^11.5",
+    "vlucas/phpdotenv": "^5.7"
+  },
+  "suggest": {
+    "ext-event": "For better performance. "
+  },
+  "autoload": {
+    "psr-4": {
+      "": "./",
+      "app\\": "./app",
+      "App\\": "./app",
+      "app\\View\\Components\\": "./app/view/components"
+    }
+  },
+  "scripts": {
+    "post-package-install": [
+      "support\\Plugin::install"
+    ],
+    "post-package-update": [
+      "support\\Plugin::install"
+    ],
+    "pre-package-uninstall": [
+      "support\\Plugin::uninstall"
+    ],
+    "post-create-project-cmd": [
+      "support\\Setup::run"
+    ],
+    "setup-webman": [
+      "support\\Setup::run"
+    ],
+    "analyse": [
+      "@php -d memory_limit=512M vendor/bin/phpstan analyse --no-progress"
+    ],
+    "test:integration": [
+      "@php tests/integration/account_security_flow.php",
+      "@php tests/integration/oauth_oidc_flow.php"
+    ],
+    "test:unit": [
+      "@php vendor/bin/phpunit --testsuite Unit"
+    ],
+    "check": [
+      "@analyse",
+      "@test:unit",
+      "@test:integration"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require-dev": {
+    "phpunit/phpunit": "^13.3",
+    "phpstan/phpstan": "^2.2",
+    "friendsofphp/php-cs-fixer": "^3.95"
+  }
+}

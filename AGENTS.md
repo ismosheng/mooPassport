@@ -1,6 +1,9 @@
 # Moo Passport repository rules
 
-All contributors and coding agents must follow `docs/DEVELOPMENT.md`.
+后端贡献者和编码代理必须遵循 `api/docs/DEVELOPMENT.md`。前端位于 `web`，使用
+Vue 3、JavaScript、Vite、Naive UI、Pinia 和 Vue Router，不引入 Tailwind CSS。
+前端视觉实现必须遵循 `web/docs/DESIGN_SYSTEM.md`，页面不得绕过全局 Token
+自行定义品牌色、基础字号或圆角体系。
 
 Hard requirements:
 
@@ -9,6 +12,8 @@ Hard requirements:
 - Keep Webman's default routes disabled.
 - Controllers may call validators and services, but never models, repositories,
   Redis, or SQL directly.
+- Controllers are reused by Webman and must be stateless. Never store request or
+  user-specific data on controller instances.
 - Services own business workflows and transaction boundaries.
 - Services access persistence through repository interfaces.
 - Application-specific services live in that application; only genuinely shared
