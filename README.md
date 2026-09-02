@@ -90,24 +90,37 @@ npm run build
 
 ## 服务器部署
 
-以前后端使用同一个域名 `id.niusir.com` 为例，推荐目录：
+以前后端使用同一个域名 `id.niusir.com`，且后端内容直接上传到域名目录为例：
 
 ```text
 /www/wwwroot/id.niusir.com/
-├── api/        # 后端源码，不能直接作为网站根目录
-└── web/
-    └── dist/   # 前端 npm run build 产物，作为网站根目录
+├── app/
+├── config/
+├── public/       # 宝塔网站运行目录，同时存放前端构建产物
+├── runtime/
+├── vendor/
+├── .env
+└── start.php
 ```
 
-在服务器构建前端：
+在本地前端目录完成构建：
 
 ```bash
-cd /www/wwwroot/id.niusir.com/web
+cd web
 npm install
 npm run build
 ```
 
-宝塔网站的根目录指向 `/www/wwwroot/id.niusir.com/web/dist`。前端使用相对 API 地址，因此同域部署不需要前端 `.env`；Vite 的开发代理只在 `npm run dev` 时生效。
+将 `web/dist` 里面的文件合并上传到服务器的 `/www/wwwroot/id.niusir.com/public`。最终应存在：
+
+```text
+/www/wwwroot/id.niusir.com/public/index.html
+/www/wwwroot/id.niusir.com/public/assets/
+```
+
+上传时不要整体删除 `public`，尤其不要删除运行后产生的 `public/uploads`。宝塔网站的运行目录设置为 `/www/wwwroot/id.niusir.com/public`，不能设置为后端项目根目录。
+
+前端使用相对 API 地址，因此同域部署不需要前端 `.env`；Vite 的开发代理只在 `npm run dev` 时生效。
 
 Nginx 配置需要让前端路由回退到 `index.html`，并把后端路径转发到 Webman：
 
@@ -120,7 +133,7 @@ location ^~ /.well-known/ {
     proxy_pass http://127.0.0.1:8787;
 }
 
-location ~ ^/(passport|oauth|admin/v1|api/v1|uploads)(/|$) {
+location ^~ /passport/ {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -128,6 +141,40 @@ location ~ ^/(passport|oauth|admin/v1|api/v1|uploads)(/|$) {
     proxy_http_version 1.1;
     proxy_set_header Connection "";
     proxy_pass http://127.0.0.1:8787;
+}
+
+location ^~ /oauth/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_pass http://127.0.0.1:8787;
+}
+
+location ^~ /admin/v1/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_pass http://127.0.0.1:8787;
+}
+
+location ^~ /api/v1/ {
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_pass http://127.0.0.1:8787;
+}
+
+location ^~ /uploads/ {
+    try_files $uri =404;
 }
 
 location / {
@@ -142,6 +189,8 @@ location ~ /\. {
     return 404;
 }
 ```
+
+这些后端 `location` 必须与前端的 `location /` 同时存在。`proxy_pass` 后不要添加 `/`，否则可能改写并丢失原始接口路径。不要继续保留“所有不存在的文件都转发给 Webman”的通用规则，否则 `/login`、`/admin` 等 Vue Router 页面会被后端接管。
 
 生产环境后端 `.env` 至少需要对应设置：
 
@@ -162,10 +211,10 @@ HTTP_LISTEN=http://0.0.0.0:8787
 宝塔添加 Webman 服务时，启动命令使用：
 
 ```bash
-php /www/wwwroot/id.niusir.com/api/start.php start
+php /www/wwwroot/id.niusir.com/start.php start
 ```
 
-不要添加 `-d`，宝塔会负责进程守护。网站运行目录直接指向后端时必须是 `api/public`，不能暴露后端项目根目录；本项目采用前后端同域分流时，网站根目录应按上文指向 `web/dist`。完整操作可参考 [Webman 官方宝塔安装指南](https://www.workerman.net/doc/webman/bt-install.html)。
+不要添加 `-d`，宝塔会负责进程守护。网站运行目录必须指向 `public`，不能暴露后端项目根目录。完整操作可参考 [Webman 官方宝塔安装指南](https://www.workerman.net/doc/webman/bt-install.html)。
 
 ### 启动失败与端口占用
 
@@ -184,13 +233,35 @@ ss -lntp | grep :8787
 lsof -i :8787
 ```
 
-如端口已被其他服务占用，可在 `api/.env` 中修改监听端口：
+如端口已被其他服务占用，可在服务器项目根目录的 `.env` 中修改监听端口：
 
 ```dotenv
 HTTP_LISTEN=http://0.0.0.0:8788
 ```
 
-修改后重启 Webman，并把 Nginx 中的 `proxy_pass http://127.0.0.1:8787` 同步改为新端口。也可以直接修改 `api/config/process.php`，但生产环境推荐通过 `HTTP_LISTEN` 配置，避免升级代码时产生冲突。
+修改后重启 Webman，并把 Nginx 中的 `proxy_pass http://127.0.0.1:8787` 同步改为新端口。也可以直接修改 `config/process.php`，但生产环境推荐通过 `HTTP_LISTEN` 配置，避免升级代码时产生冲突。
+
+### API 请求返回 405
+
+如果登录页面可以打开，但 `POST /passport/v1/login` 返回 Nginx 的 `405 Not Allowed`，说明 API 请求落入了前端静态文件规则，Nginx 正在尝试用 `index.html` 响应 POST。确认已经配置上文的 `location ^~ /passport/`，并且它代理到 Webman 实际监听端口。
+
+先绕过 Nginx 测试 Webman：
+
+```bash
+curl -i -X POST http://127.0.0.1:8787/passport/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+再测试域名转发：
+
+```bash
+curl -i -X POST https://id.niusir.com/passport/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+两次请求都应返回后端 JSON 响应，而不是 Nginx HTML 错误页。修改 Nginx 后先执行 `nginx -t`，确认通过再重载配置。
 
 ## 生产安全
 
