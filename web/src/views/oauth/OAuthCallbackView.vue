@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { NAlert, NButton, NIcon, NResult } from 'naive-ui'
 import { CheckmarkCircleOutline, CloseCircleOutline } from '@vicons/ionicons5'
-import BrandLink from '../../components/BrandLink.vue'
+import BrandLink from '../../components/app/BrandLink.vue'
 
 const route = useRoute()
 const params = ref({})

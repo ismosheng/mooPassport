@@ -2,9 +2,9 @@
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { NButton, NCheckbox, NCheckboxGroup, NForm, NFormItem, NIcon, NInput, NModal, NSelect, NSpace, NSwitch, NTag, useDialog, useMessage } from 'naive-ui'
 import { AddOutline, KeyOutline } from '@vicons/ionicons5'
-import { createRole, deleteRole, getRoles, updateRole, updateRolePermissions } from '../../api/admin.js'
-import AdminDataTable from '../../components/admin/AdminDataTable.vue'
-import { useAdminAccessStore } from '../../stores/adminAccess.js'
+import { createRole, deleteRole, getRoles, updateRole, updateRolePermissions } from '../../../api/roles.js'
+import AdminDataTable from '../../../components/common/data-table/AdminDataTable.vue'
+import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 const message = useMessage(), dialog = useDialog()
 const access = useAdminAccessStore()

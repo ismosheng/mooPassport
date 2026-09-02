@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 import { NAlert, NButton, NCheckbox, NCheckboxGroup, NForm, NFormItem, NInput, NModal, NRadioButton, NRadioGroup, NUpload, useMessage } from 'naive-ui'
-import { createApplication, uploadApplicationLogo } from '../../api/admin.js'
+import { createApplication, uploadApplicationLogo } from '../../../../api/applications.js'
 
 const props = defineProps({ show: Boolean })
 const emit = defineEmits(['update:show', 'created'])

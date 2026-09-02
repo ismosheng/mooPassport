@@ -3,7 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NCheckbox, NForm, NFormItem, NInput, useMessage } from 'naive-ui'
 import { register } from '../../api/auth.js'
-import BrandLink from '../../components/BrandLink.vue'
+import BrandLink from '../../components/app/BrandLink.vue'
 
 const route = useRoute()
 const router = useRouter()

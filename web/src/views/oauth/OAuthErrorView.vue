@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton, NIcon, NResult } from 'naive-ui'
 import { AlertCircleOutline } from '@vicons/ionicons5'
-import BrandLink from '../../components/BrandLink.vue'
+import BrandLink from '../../components/app/BrandLink.vue'
 import { resolveOAuthError } from './oauthError.js'
 
 const route = useRoute()

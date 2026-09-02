@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import BrandLink from '../components/BrandLink.vue'
+import BrandLink from '../components/app/BrandLink.vue'
 
 defineProps({
   title: { type: String, required: true },

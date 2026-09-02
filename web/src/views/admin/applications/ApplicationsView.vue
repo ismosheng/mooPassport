@@ -2,12 +2,12 @@
 import { h, onMounted, ref } from 'vue'
 import { NButton, NIcon, NInput, NSelect, NTag } from 'naive-ui'
 import { AddOutline, AppsOutline, FilterOutline, SearchOutline } from '@vicons/ionicons5'
-import CreateOAuthApplicationModal from '../../components/admin/CreateOAuthApplicationModal.vue'
-import AdminDataTable from '../../components/admin/AdminDataTable.vue'
-import { getApplications } from '../../api/admin.js'
+import CreateOAuthApplicationModal from './components/CreateOAuthApplicationModal.vue'
+import AdminDataTable from '../../../components/common/data-table/AdminDataTable.vue'
+import { getApplications } from '../../../api/applications.js'
 import { useMessage } from 'naive-ui'
 import { useRouter } from 'vue-router'
-import { useAdminAccessStore } from '../../stores/adminAccess.js'
+import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 const loading = ref(false)
 const showCreate = ref(false)

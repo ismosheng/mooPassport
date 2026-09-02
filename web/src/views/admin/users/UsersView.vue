@@ -2,9 +2,10 @@
 import { h, onMounted, ref } from 'vue'
 import { NButton, NCard, NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NDropdown, NIcon, NInput, NSelect, NSkeleton, NSpace, NTag, useDialog, useMessage } from 'naive-ui'
 import { PeopleOutline, SearchOutline } from '@vicons/ionicons5'
-import { forceLogoutUser, getRoles, getUser, getUsers, grantUserRole, revokeUserRole, updateUserStatus } from '../../api/admin.js'
-import AdminDataTable from '../../components/admin/AdminDataTable.vue'
-import { useAdminAccessStore } from '../../stores/adminAccess.js'
+import { getRoles, grantUserRole, revokeUserRole } from '../../../api/roles.js'
+import { forceLogoutUser, getUser, getUsers, updateUserStatus } from '../../../api/users.js'
+import AdminDataTable from '../../../components/common/data-table/AdminDataTable.vue'
+import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 const loading = ref(false)
 const rows = ref([])

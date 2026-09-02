@@ -11,7 +11,7 @@ import {
   PhonePortraitOutline,
   ShieldCheckmarkOutline,
 } from '@vicons/ionicons5'
-import BrandLink from '../components/BrandLink.vue'
+import BrandLink from '../components/app/BrandLink.vue'
 import { useAuthStore } from '../stores/auth.js'
 
 const route = useRoute()

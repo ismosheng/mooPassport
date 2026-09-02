@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
-import BrandLink from '../../components/BrandLink.vue'
+import BrandLink from '../../components/app/BrandLink.vue'
 import { adminMenus } from '../../config/adminMenu.js'
 import { useAdminAccessStore } from '../../stores/adminAccess.js'
 defineProps({ collapsed: Boolean, mobile: Boolean })

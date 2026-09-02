@@ -6,8 +6,8 @@ import javascript from 'highlight.js/lib/languages/javascript'
 import php from 'highlight.js/lib/languages/php'
 import xml from 'highlight.js/lib/languages/xml'
 import { useRoute, useRouter } from 'vue-router'
-import { getApplication, rotateOAuthClientSecret, updateApplication, updateOAuthClient, updateOAuthClientStatus, uploadApplicationLogo } from '../../api/admin.js'
-import { useAdminAccessStore } from '../../stores/adminAccess.js'
+import { getApplication, rotateOAuthClientSecret, updateApplication, updateOAuthClient, updateOAuthClientStatus, uploadApplicationLogo } from '../../../api/applications.js'
+import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('php', php)

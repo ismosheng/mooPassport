@@ -1,7 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import backgroundVideo from '../assets/bg-video.mp4'
-import mobileImage from '../assets/img-bg-mobile.png'
+import backgroundVideo from '../../assets/bg-video.mp4'
+import mobileImage from '../../assets/img-bg-mobile.png'
 
 const showVideo = ref(false)
 let desktopQuery

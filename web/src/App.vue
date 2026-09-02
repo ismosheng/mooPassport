@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { NConfigProvider, NDialogProvider, NMessageProvider, dateZhCN, zhCN } from 'naive-ui'
 import { themeOverrides } from './theme/index.js'
-import AuthBackground from './components/AuthBackground.vue'
+import AuthBackground from './components/auth/AuthBackground.vue'
 
 const route = useRoute()
 const showAuthBackground = computed(() => route.meta.authBackground === true)

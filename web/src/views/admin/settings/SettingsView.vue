@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { NButton, NEmpty, NForm, NFormItem, NInput, NInputNumber, NSkeleton, NSpace, NSwitch, useMessage } from 'naive-ui'
-import { getSettings, updateSettings } from '../../api/settings.js'
+import { getSettings, updateSettings } from '../../../api/settings.js'
 
 const message = useMessage()
 const loading = ref(true)

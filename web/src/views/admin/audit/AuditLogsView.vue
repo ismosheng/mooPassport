@@ -2,8 +2,8 @@
 import { h, onMounted, ref } from 'vue'
 import { NButton, NCard, NDatePicker, NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NIcon, NInput, NSelect, NTag, useMessage } from 'naive-ui'
 import { SearchOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
-import AdminDataTable from '../../components/admin/AdminDataTable.vue'
-import { getAuditLogs } from '../../api/admin.js'
+import AdminDataTable from '../../../components/common/data-table/AdminDataTable.vue'
+import { getAuditLogs } from '../../../api/audit.js'
 
 const loading = ref(false), rows = ref([]), total = ref(0), page = ref(1), perPage = ref(20)
 const keyword = ref(''), eventType = ref(null), success = ref(null), dateRange = ref(null), eventTypes = ref([])

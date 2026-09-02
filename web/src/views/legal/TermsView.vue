@@ -1,5 +1,5 @@
 <script setup>
-import LegalDocumentLayout from '../../components/LegalDocumentLayout.vue'
+import LegalDocumentLayout from './components/LegalDocumentLayout.vue'
 </script>
 
 <template>

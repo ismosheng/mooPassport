@@ -3,11 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { NButton, NIcon, NTag, useMessage } from 'naive-ui'
 import { AddOutline, AppsOutline, CheckmarkCircleOutline, ChevronForwardOutline, CloudDoneOutline, KeyOutline, PeopleOutline, RefreshOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
 import { useRouter } from 'vue-router'
-import DashboardPageHeader from '../../components/admin/DashboardPageHeader.vue'
-import DashboardMetricCard from '../../components/admin/DashboardMetricCard.vue'
-import DashboardPanel from '../../components/admin/DashboardPanel.vue'
-import { getDashboardSummary } from '../../api/admin.js'
-import { useAdminAccessStore } from '../../stores/adminAccess.js'
+import DashboardPageHeader from './components/DashboardPageHeader.vue'
+import DashboardMetricCard from './components/DashboardMetricCard.vue'
+import DashboardPanel from './components/DashboardPanel.vue'
+import { getDashboardSummary } from '../../../api/dashboard.js'
+import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 const router = useRouter()
 const message = useMessage()

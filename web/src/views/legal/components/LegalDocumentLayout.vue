@@ -1,4 +1,6 @@
 <script setup>
+import logo from '../../../assets/logo.png'
+
 defineProps({
   title: { type: String, required: true },
   updatedAt: { type: String, default: '2026-09-01' },
@@ -9,7 +11,7 @@ defineProps({
   <main class="legal-shell">
     <header class="legal-topbar">
       <router-link class="brand-link" to="/">
-        <img src="../assets/logo.png" alt="哞哞通行证" />
+        <img :src="logo" alt="哞哞通行证" />
         <strong>哞哞通行证</strong>
       </router-link>
       <router-link to="/login">返回登录</router-link>
