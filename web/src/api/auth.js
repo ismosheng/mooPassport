@@ -7,9 +7,14 @@ export const resendVerification = (email) => http.post('/passport/v1/email/resen
 export const forgotPassword = (email) => http.post('/passport/v1/password/forgot', { email })
 export const resetPassword = (data) => http.post('/passport/v1/password/reset', data)
 export const changePassword = (data) => http.post('/passport/v1/password/change', data)
-export const listSessions = () => http.get('/passport/v1/sessions')
+export const listSessions = (params) => http.get('/passport/v1/sessions', { params })
 export const revokeSession = (sessionId) => http.delete(`/passport/v1/sessions/${sessionId}`)
 export const revokeOtherSessions = () => http.post('/passport/v1/sessions/revoke-others')
 export const getCurrentUser = () => http.get('/passport/v1/me')
 export const updateProfile = (data) => http.put('/passport/v1/profile', data)
+export function uploadProfileAvatar(file) {
+  const body = new FormData()
+  body.append('avatar', file)
+  return http.post('/passport/v1/profile/avatar', body)
+}
 export const logout = () => http.post('/passport/v1/logout')

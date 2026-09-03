@@ -21,6 +21,11 @@ interface OAuthConsentRepositoryInterface
      */
     public function listActiveForUser(int $userId, DateTimeImmutable $now): array;
 
+    /**
+     * @return array{items:list<OAuthConsent>,total:int}
+     */
+    public function paginateActiveForUser(int $userId, DateTimeImmutable $now, int $page, int $perPage): array;
+
     /** @param list<string> $scopes */
     public function grant(int $userId, int $clientId, array $scopes, ?DateTimeImmutable $expiresAt): OAuthConsent;
 

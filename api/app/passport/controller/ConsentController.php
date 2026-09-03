@@ -30,9 +30,13 @@ final class ConsentController
     #[Get('', 'passport.v1.oauth_consents.list')]
     public function list(Request $request): Response
     {
-        return ApiResponse::success($request, [
-            'items' => $this->consents->listForUser($this->identity($request)->user->id),
-        ]);
+        $page = max(1, (int) $request->get('page', 1));
+        $perPage = min(50, max(5, (int) $request->get('per_page', 5)));
+
+        return ApiResponse::success(
+            $request,
+            $this->consents->listForUser($this->identity($request)->user->id, $page, $perPage),
+        );
     }
 
     #[Delete('/{clientId}', 'passport.v1.oauth_consents.revoke')]

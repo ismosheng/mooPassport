@@ -11,7 +11,8 @@ final class PasswordHasher
     private const OPTIONS = [
         'memory_cost' => 65536,
         'time_cost' => 4,
-        'threads' => 2,
+        // Some PHP Argon2 implementations only support a single lane.
+        'threads' => 1,
     ];
 
     public function hash(string $password): string

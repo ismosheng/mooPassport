@@ -8,6 +8,7 @@ use app\common\exception\OAuthProtocolException;
 use app\oauth\service\TokenRevocationService;
 use app\oauth\support\ClientCredentialsParser;
 use support\annotation\route\DisableDefaultRoute;
+use support\annotation\route\Get;
 use support\annotation\route\Post;
 use Webman\Http\Request;
 use Webman\Http\Response;
@@ -20,6 +21,15 @@ final class TokenRevocationController
         private readonly TokenRevocationService $revocation,
         private readonly ClientCredentialsParser $credentialsParser,
     ) {
+    }
+
+    #[Get('/oauth/revoke', 'oauth.token.revoke.method_not_allowed')]
+    public function methodNotAllowed(): Response
+    {
+        return $this->noStore(json([
+            'error' => 'invalid_request',
+            'error_description' => '撤销端点必须使用 POST 表单请求。',
+        ])->withStatus(405)->withHeader('Allow', 'POST'));
     }
 
     #[Post('/oauth/revoke', 'oauth.token.revoke')]

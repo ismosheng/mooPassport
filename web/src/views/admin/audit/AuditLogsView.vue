@@ -48,10 +48,10 @@ const columns = [
   { title:'时间',key:'created_at',width:170,render:(row)=>formatDateTime(row.created_at) },
   { title:'事件',key:'event_type',minWidth:230,render:(row)=>h('div',{class:'event-cell'},[h('strong',eventLabel(row.event_type)),h('small',row.event_type)]) },
   { title:'结果',key:'success',width:90,render:(row)=>h(NTag,{size:'small',type:row.success?'success':'error',round:true},{default:()=>row.success?'成功':'失败'}) },
-  { title:'数据来源',key:'storage',width:110,render:(row)=>h(NTag,{size:'small',type:row.storage==='archive'?'warning':'default',bordered:false},{default:()=>row.storage==='archive'?'历史归档':'在线数据'}) },
-  { title:'用户',key:'user',minWidth:180,render:(row)=>row.user?(row.user.username||row.user.email||row.user.id):'-' },
-  { title:'应用',key:'client',minWidth:190,render:(row)=>row.client?(row.client.name||row.client.client_id):'-' },
+  { title:'用户',key:'user',width:150,ellipsis:{tooltip:true},render:(row)=>row.user?(row.user.username||row.user.email||row.user.id):'-' },
   { title:'IP 地址',key:'ip_address',width:145,render:(row)=>row.ip_address||'-' },
+  { title:'数据来源',key:'storage',width:110,render:(row)=>h(NTag,{size:'small',type:row.storage==='archive'?'warning':'default',bordered:false},{default:()=>row.storage==='archive'?'历史归档':'在线数据'}) },
+  { title:'应用',key:'client',minWidth:190,render:(row)=>row.client?(row.client.name||row.client.client_id):'-' },
   { title:'请求 ID',key:'request_id',minWidth:180,ellipsis:{tooltip:true},render:(row)=>row.request_id||'-' },
   { title:'操作',key:'actions',width:90,fixed:'right',render:(row)=>h(NButton,{text:true,type:'primary',size:'small',onClick:(e)=>{e.stopPropagation();selected.value=row;showDetail.value=true}},{default:()=> '查看详情'}) },
 ]

@@ -8,7 +8,6 @@ const message = useMessage()
 const auth = useAuthStore()
 
 const displayName = computed(() => auth.user?.display_name || auth.user?.username || '用户')
-const initials = computed(() => displayName.value.slice(0, 1).toUpperCase())
 const emailVerified = computed(() => Boolean(auth.user?.email_verified_at))
 const statusLabel = computed(() => {
   const status = auth.user?.status
@@ -39,7 +38,9 @@ async function copyAccountId() {
   <div class="account-page">
     <section class="account-panel account-overview-card">
       <div class="account-hero-main">
-        <div class="account-avatar account-avatar-lg" aria-hidden="true">{{ initials }}</div>
+        <div class="account-avatar account-avatar-lg" aria-hidden="true">
+          <img :src="auth.user.avatar_url" alt="" />
+        </div>
         <div class="account-hero-copy">
           <h2>{{ displayName }}</h2>
           <p class="account-hero-username">@{{ auth.user.username }}</p>

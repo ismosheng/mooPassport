@@ -1,27 +1,18 @@
 {
-  "name": "workerman/webman",
+  "name": "ismosheng/moo-passport",
   "type": "project",
   "keywords": [
-    "high performance",
-    "http service"
+    "oauth2",
+    "openid-connect",
+    "identity-provider",
+    "webman"
   ],
-  "homepage": "https://www.workerman.net",
+  "homepage": "https://github.com/ismosheng/mooPassport",
   "license": "MIT",
-  "description": "High performance HTTP Service Framework.",
-  "authors": [
-    {
-      "name": "walkor",
-      "email": "walkor@workerman.net",
-      "homepage": "https://www.workerman.net",
-      "role": "Developer"
-    }
-  ],
+  "description": "OAuth 2.1 and OpenID Connect identity service built with Webman.",
   "support": {
-    "email": "walkor@workerman.net",
-    "issues": "https://github.com/walkor/webman/issues",
-    "forum": "https://wenda.workerman.net/",
-    "wiki": "https://workerman.net/doc/webman",
-    "source": "https://github.com/walkor/webman"
+    "issues": "https://github.com/ismosheng/mooPassport/issues",
+    "source": "https://github.com/ismosheng/mooPassport"
   },
   "require": {
     "php": ">=8.4",
@@ -39,17 +30,16 @@
     "symfony/uid": "^8.1",
     "symfony/mailer": "^8.1",
     "spomky-labs/otphp": "^11.5",
-    "vlucas/phpdotenv": "^5.7"
+    "vlucas/phpdotenv": "^5.7",
+    "qiniu/php-sdk": "^7.14"
   },
   "suggest": {
     "ext-event": "For better performance. "
   },
   "autoload": {
     "psr-4": {
-      "": "./",
       "app\\": "./app",
-      "App\\": "./app",
-      "app\\View\\Components\\": "./app/view/components"
+      "support\\": "./support"
     }
   },
   "scripts": {

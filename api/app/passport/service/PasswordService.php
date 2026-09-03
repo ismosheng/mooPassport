@@ -6,6 +6,7 @@ namespace app\passport\service;
 
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\infrastructure\mail\MailSenderInterface;
 use app\common\model\User;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
@@ -20,7 +21,6 @@ use app\common\support\SecureToken;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 
 /** 处理密码重置与修改，并撤销密码变更前签发的全部会话和令牌。 */
 final class PasswordService
@@ -39,7 +39,8 @@ final class PasswordService
         private readonly SecureToken $secureToken,
         private readonly PasswordHasher $passwordHasher,
         private readonly IpAddress $ipAddress,
-        private readonly string $resetBaseUrl,
+        private readonly MailTemplateService $mailTemplates,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -64,7 +65,7 @@ final class PasswordService
         }
 
         $rawToken = $this->secureToken->generate();
-        Db::connection()->transaction(function () use ($user, $requestIp, $rawToken, $now): void {
+        $this->transactions->run(function () use ($user, $requestIp, $rawToken, $now): void {
             $this->resetTokens->invalidateOutstandingForUser($user->id, $now);
             $this->resetTokens->create([
                 'user_id' => $user->id,
@@ -75,14 +76,13 @@ final class PasswordService
             ]);
         });
 
-        $url = $this->resetBaseUrl . '/reset-password#token=' . rawurlencode($rawToken);
-        $safeUrl = htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $message = $this->mailTemplates->passwordReset($user, $rawToken, self::RESET_LIFETIME_MINUTES);
         try {
             $this->mailSender->send(
                 (string) $user->email,
-                '重置你的哞哞通行证密码',
-                "请在 30 分钟内打开以下链接重置密码：\n{$url}\n\n如果不是你本人操作，请忽略此邮件。",
-                "<p>请在 30 分钟内完成密码重置。</p><p><a href=\"{$safeUrl}\">重置密码</a></p><p>如果不是你本人操作，请忽略此邮件。</p>",
+                $message['subject'],
+                $message['text'],
+                $message['html'],
             );
         } catch (\Throwable) {
             $this->auditLogs->record([
@@ -102,7 +102,7 @@ final class PasswordService
             throw $this->invalidResetToken();
         }
 
-        Db::connection()->transaction(function () use ($resetToken, $tokenHash, $newPassword, $requestIp, $now): void {
+        $this->transactions->run(function () use ($resetToken, $tokenHash, $newPassword, $requestIp, $now): void {
             if (!$this->resetTokens->consume($tokenHash, $now)) {
                 throw $this->invalidResetToken();
             }
@@ -132,7 +132,7 @@ final class PasswordService
         }
 
         $now = $this->now();
-        Db::connection()->transaction(function () use ($user, $newPassword, $requestIp, $now): void {
+        $this->transactions->run(function () use ($user, $newPassword, $requestIp, $now): void {
             $this->replacePasswordAndRevokeCredentials($user, $newPassword, $now);
             $this->resetTokens->invalidateOutstandingForUser($user->id, $now);
             $this->auditLogs->record([

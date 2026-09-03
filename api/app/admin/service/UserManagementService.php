@@ -7,13 +7,13 @@ namespace app\admin\service;
 use app\admin\repository\contract\UserManagementRepositoryInterface;
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\User;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\repository\contract\UserSessionRepositoryInterface;
 use DateTimeImmutable;
-use support\Db;
 
 /** 组织后台用户状态变更，并保证禁用账号时同步撤销所有登录凭据。 */
 final class UserManagementService
@@ -24,6 +24,7 @@ final class UserManagementService
         private readonly AccessTokenRepositoryInterface $accessTokens,
         private readonly RefreshTokenRepositoryInterface $refreshTokens,
         private readonly AuditLogRepositoryInterface $auditLogs,
+        private readonly TransactionManagerInterface $transactions,
     ) {}
 
     /** @return array{items:list<User>,total:int,roles:array<int,list<string>>,page:int,per_page:int} */
@@ -41,7 +42,7 @@ final class UserManagementService
             throw new BusinessException('cannot_disable_self', '不能禁用或锁定当前管理员账号。', 422);
         }
         $now = new DateTimeImmutable();
-        return Db::connection()->transaction(function () use ($actorUserId, $user, $status, $now, $requestId): User {
+        return $this->transactions->run(function () use ($actorUserId, $user, $status, $now, $requestId): User {
             $previous = $user->status instanceof UserStatus ? $user->status->value : (string) $user->status;
             $user->status = $status;
             $this->users->save($user);
@@ -74,7 +75,7 @@ final class UserManagementService
         if ($user === null) throw new BusinessException('user_not_found', '用户不存在。', 404);
         if ($user->id === $actorUserId) throw new BusinessException('cannot_logout_self', '不能在这里强制下线当前管理员账号。', 422);
         $now = new DateTimeImmutable();
-        return Db::connection()->transaction(function () use ($actorUserId, $user, $now, $requestId): int {
+        return $this->transactions->run(function () use ($actorUserId, $user, $now, $requestId): int {
             $count = $this->sessions->revokeAllForUser($user->id, $now);
             $this->accessTokens->revokeForUser($user->id, $now);
             $this->refreshTokens->revokeForUser($user->id, $now);

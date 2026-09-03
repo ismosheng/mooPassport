@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: moopassport_test
+          MYSQL_USER: moo_passport
+          MYSQL_PASSWORD: ci-database-password
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci-root-password --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: api
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_URL: http://127.0.0.1:8787
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: moopassport_test
+      DB_USERNAME: moo_passport
+      DB_PASSWORD: ci-database-password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      SESSION_DRIVER: redis
+      OAUTH_ISSUER: http://127.0.0.1:8787
+      MAIL_MAILER: smtp
+      MAIL_HOST: localhost
+      MAIL_PORT: 1025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: curl, fileinfo, mbstring, openssl, pcntl, pdo_mysql, redis, sodium
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: api
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=moopassport_test/' .env
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=moo_passport/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-database-password/' .env
+      - name: Install test database
+        run: php install.php --no-admin
+      - name: Validate Composer metadata
+        run: composer validate --strict --no-check-publish
+      - name: Run backend checks
+        run: composer check
+      - name: Audit backend dependencies
+        run: composer audit --no-interaction
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm audit --omit=dev

@@ -7,6 +7,7 @@ namespace app\admin\service;
 use app\admin\dto\CreateApplicationInput;
 use app\common\enum\OAuthApplicationType;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\Application;
 use app\common\repository\contract\ApplicationRepositoryInterface;
 use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
@@ -14,7 +15,6 @@ use app\common\repository\contract\OAuthClientRepositoryInterface;
 use app\common\dto\CreateOAuthClientInput;
 use app\common\dto\CreatedOAuthClient;
 use app\common\service\OAuthClientManagementService;
-use support\Db;
 use Symfony\Component\Uid\Ulid;
 
 /** 管理逻辑应用，并以独立 OAuth 客户端隔离用户登录与机器调用凭据。 */
@@ -25,6 +25,7 @@ final class ApplicationManagementService
         private readonly OAuthClientManagementRepositoryInterface $clients,
         private readonly OAuthClientManagementService $clientManagement,
         private readonly OAuthClientRepositoryInterface $clientRepository,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -40,7 +41,7 @@ final class ApplicationManagementService
         }
         $this->validateLogoUrl($input->logoUrl);
 
-        return Db::connection()->transaction(function () use ($ownerUserId, $input, $capabilities): array {
+        return $this->transactions->run(function () use ($ownerUserId, $input, $capabilities): array {
             $application = $this->applications->create([
                 'public_id' => (string) new Ulid(),
                 'owner_user_id' => $ownerUserId,
@@ -133,7 +134,7 @@ final class ApplicationManagementService
     {
         $result = $this->detail($publicId);
         // 外键级联删除客户端、授权码和令牌，确保被删除应用无法继续访问资源。
-        Db::connection()->transaction(fn () => $this->applications->delete($result['application']));
+        $this->transactions->run(fn () => $this->applications->delete($result['application']));
     }
 
     /** @return array{application: Application, clients: list<\app\common\model\OAuthClient>} */
@@ -146,7 +147,7 @@ final class ApplicationManagementService
         $application->description = $description === null ? null : trim($description);
         $application->logo_url = $logoUrl;
 
-        Db::connection()->transaction(function () use ($application, $result): void {
+        $this->transactions->run(function () use ($application, $result): void {
             $this->applications->save($application);
             foreach ($result['clients'] as $client) {
                 $purpose = $client->application_type === OAuthApplicationType::Service ? '服务端 API' : '用户登录';
@@ -159,16 +160,13 @@ final class ApplicationManagementService
         return $this->detail($publicId);
     }
 
-    /** @return list<string> */
-    public function redirectUris(int $clientId): array
+    /**
+     * @param list<int> $clientIds
+     * @return array<int, array{redirect_uris: list<string>, scopes: list<string>}>
+     */
+    public function clientConfigurations(array $clientIds): array
     {
-        return $this->clients->redirectUris($clientId);
-    }
-
-    /** @return list<string> */
-    public function scopeNames(int $clientId): array
-    {
-        return $this->clients->scopeNames($clientId);
+        return $this->clients->configurationsByClientIds($clientIds);
     }
 
     private function validateLogoUrl(?string $logoUrl): void

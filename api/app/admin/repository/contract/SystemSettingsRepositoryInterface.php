@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace app\admin\repository\contract;
 
-/** 定义后台系统设置的持久化边界，白名单与值校验由 Service 负责。 */
-interface SystemSettingsRepositoryInterface
-{
-    /** @return array<string, array{value:string,version:int}> */
-    public function allByKey(): array;
+use app\common\repository\contract\SystemSettingReaderInterface;
 
+/** 定义后台系统设置的持久化边界，白名单与值校验由 Service 负责。 */
+interface SystemSettingsRepositoryInterface extends SystemSettingReaderInterface
+{
     /** @return array{id:int,version:int}|null */
     public function findForUpdate(string $key): ?array;
 

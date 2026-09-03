@@ -38,6 +38,12 @@ final class OidcMetadataController
         return $this->publicJson($this->jwks->publicKeySet());
     }
 
+    #[Get('/.well-known/jwks.json', 'oidc.well_known_jwks')]
+    public function wellKnownJwks(): Response
+    {
+        return $this->publicJson($this->jwks->publicKeySet());
+    }
+
     /** @param array<string, mixed> $payload */
     private function publicJson(array $payload): Response
     {

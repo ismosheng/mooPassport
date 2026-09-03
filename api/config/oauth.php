@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'issuer' => rtrim(getenv('OAUTH_ISSUER') ?: 'http://127.0.0.1:8787', '/'),
+    'issuer' => rtrim(getenv('OAUTH_ISSUER') ?: (getenv('APP_URL') ?: 'http://127.0.0.1:8787'), '/'),
     'access_token_ttl' => (int) (getenv('OAUTH_ACCESS_TOKEN_TTL') ?: 900),
     'refresh_token_ttl' => (int) (getenv('OAUTH_REFRESH_TOKEN_TTL') ?: 2592000),
     'authorization_code_ttl' => (int) (getenv('OAUTH_AUTH_CODE_TTL') ?: 300),

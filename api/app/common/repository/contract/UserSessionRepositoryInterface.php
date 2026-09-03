@@ -23,6 +23,11 @@ interface UserSessionRepositoryInterface
      */
     public function listActiveForUser(int $userId, DateTimeImmutable $now): array;
 
+    /**
+     * @return array{items:list<UserSession>,total:int}
+     */
+    public function paginateActiveForUser(int $userId, DateTimeImmutable $now, int $page, int $perPage): array;
+
     /** @param array<string, mixed> $attributes */
     public function create(array $attributes): UserSession;
 

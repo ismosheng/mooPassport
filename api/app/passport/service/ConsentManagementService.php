@@ -28,20 +28,21 @@ final class ConsentManagementService
     }
 
     /**
-     * @return list<array{
+     * @return array{items:list<array{
      *     client_id: string,
      *     name: string,
      *     description: ?string,
      *     logo_url: ?string,
      *     scopes: list<string>,
      *     granted_at: ?string
-     * }>
+     * }>,total:int,page:int,per_page:int}
      */
-    public function listForUser(int $userId): array
+    public function listForUser(int $userId, int $page, int $perPage): array
     {
         $now = $this->now();
         $items = [];
-        foreach ($this->consents->listActiveForUser($userId, $now) as $consent) {
+        $result = $this->consents->paginateActiveForUser($userId, $now, $page, $perPage);
+        foreach ($result['items'] as $consent) {
             $client = $this->clients->findById($consent->client_id);
             if ($client === null) {
                 continue;
@@ -57,7 +58,7 @@ final class ConsentManagementService
             ];
         }
 
-        return $items;
+        return ['items' => $items, 'total' => $result['total'], 'page' => $page, 'per_page' => $perPage];
     }
 
     public function revokeForUser(

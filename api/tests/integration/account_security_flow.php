@@ -5,6 +5,7 @@ declare(strict_types=1);
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
 use app\common\infrastructure\mail\MailSenderInterface;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\EmailVerificationToken;
 use app\common\model\LoginAttempt;
 use app\common\model\PasswordResetToken;
@@ -23,6 +24,8 @@ use app\common\support\SecureToken;
 use app\passport\dto\LoginInput;
 use app\passport\dto\RegisterInput;
 use app\passport\service\EmailVerificationService;
+use app\passport\service\MailTemplateService;
+use app\common\repository\contract\SystemSettingReaderInterface;
 use app\passport\service\LoginService;
 use app\passport\service\PasswordService;
 use app\passport\service\RegisterService;
@@ -83,13 +86,25 @@ $sessions = $container->get(UserSessionRepositoryInterface::class);
 $auditLogs = $container->get(AuditLogRepositoryInterface::class);
 $emailTokens = $container->get(EmailVerificationTokenRepositoryInterface::class);
 $resetTokens = $container->get(PasswordResetTokenRepositoryInterface::class);
+$transactions = $container->get(TransactionManagerInterface::class);
+$mailTemplates = new MailTemplateService(
+    new class implements SystemSettingReaderInterface {
+        public function allByKey(): array
+        {
+            return [];
+        }
+    },
+    'http://passport.test',
+    'Moo Passport',
+);
 $emailVerification = new EmailVerificationService(
     $users,
     $emailTokens,
     $auditLogs,
     $mail,
     $secureToken,
-    'http://passport.test',
+    $mailTemplates,
+    $transactions,
 );
 $register = new RegisterService(
     $users,
@@ -97,6 +112,7 @@ $register = new RegisterService(
     $passwordHasher,
     $ipAddress,
     $emailVerification,
+    $transactions,
 );
 /** @var LoginService $login */
 $login = $container->get(LoginService::class);
@@ -111,7 +127,8 @@ $passwords = new PasswordService(
     $secureToken,
     $passwordHasher,
     $ipAddress,
-    'http://passport.test',
+    $mailTemplates,
+    $transactions,
 );
 
 $models = [User::class, UserSession::class, LoginAttempt::class, EmailVerificationToken::class, PasswordResetToken::class];

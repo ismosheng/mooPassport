@@ -46,6 +46,19 @@ final class UserRepository implements UserRepositoryInterface
         return User::query()->where('email', $email)->exists();
     }
 
+    public function phoneExists(string $countryCode, string $phoneNumber, ?int $excludeUserId = null): bool
+    {
+        $query = User::query()
+            ->where('phone_country_code', $countryCode)
+            ->where('phone_number', $phoneNumber);
+
+        if ($excludeUserId !== null) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        return $query->exists();
+    }
+
     public function create(array $attributes): User
     {
         return User::query()->create($attributes);

@@ -31,9 +31,13 @@ final class SessionController
     #[Get('', 'passport.v1.sessions.list')]
     public function list(Request $request): Response
     {
-        return ApiResponse::success($request, [
-            'items' => $this->sessions->list($this->identity($request)),
-        ]);
+        $page = max(1, (int) $request->get('page', 1));
+        $perPage = min(50, max(5, (int) $request->get('per_page', 5)));
+
+        return ApiResponse::success(
+            $request,
+            $this->sessions->list($this->identity($request), $page, $perPage),
+        );
     }
 
     #[Delete('/{sessionId}', 'passport.v1.sessions.revoke')]

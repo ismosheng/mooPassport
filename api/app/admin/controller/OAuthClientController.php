@@ -55,7 +55,7 @@ final class OAuthClientController
             ),
         );
 
-        $payload = $this->serialize($created->client);
+        $payload = $this->serialize($created->client, $this->configurations([$created->client]));
         $payload['client_secret'] = $created->plainSecret;
         $payload['client_secret_notice'] = $created->plainSecret === null
             ? '公开客户端不签发 AppSecret，必须使用 PKCE。'
@@ -67,9 +67,11 @@ final class OAuthClientController
     #[Get('', 'admin.v1.oauth_clients.list')]
     public function list(Request $request): Response
     {
+        $clients = $this->management->list($this->identity($request)->user->id, false);
+        $configurations = $this->configurations($clients);
         $items = array_map(
-            fn (OAuthClient $client): array => $this->serialize($client),
-            $this->management->list($this->identity($request)->user->id, false),
+            fn (OAuthClient $client): array => $this->serialize($client, $configurations),
+            $clients,
         );
 
         return ApiResponse::success($request, ['items' => $items]);
@@ -80,7 +82,7 @@ final class OAuthClientController
     {
         $client = $this->management->detail($this->identity($request)->user->id, $clientId, false);
 
-        return ApiResponse::success($request, $this->serialize($client));
+        return ApiResponse::success($request, $this->serialize($client, $this->configurations([$client])));
     }
 
     #[Put('/{clientId}', 'admin.v1.oauth_clients.update')]
@@ -106,7 +108,7 @@ final class OAuthClientController
             false,
         );
 
-        return ApiResponse::success($request, $this->serialize($client));
+        return ApiResponse::success($request, $this->serialize($client, $this->configurations([$client])));
     }
 
     #[Post('/{clientId}/rotate-secret', 'admin.v1.oauth_clients.rotate_secret')]
@@ -137,12 +139,17 @@ final class OAuthClientController
             false,
         );
 
-        return ApiResponse::success($request, $this->serialize($client));
+        return ApiResponse::success($request, $this->serialize($client, $this->configurations([$client])));
     }
 
-    /** @return array<string, mixed> */
-    private function serialize(OAuthClient $client): array
+    /**
+     * @param array<int, array{redirect_uris: list<string>, scopes: list<string>}> $configurations
+     * @return array<string, mixed>
+     */
+    private function serialize(OAuthClient $client, array $configurations): array
     {
+        $configuration = $configurations[$client->id] ?? ['redirect_uris' => [], 'scopes' => []];
+
         return [
             'client_id' => $client->client_id,
             'name' => $client->name,
@@ -152,10 +159,22 @@ final class OAuthClientController
             'token_endpoint_auth_method' => $this->enumValue($client->token_endpoint_auth_method),
             'require_pkce' => (bool) $client->require_pkce,
             'status' => $this->enumValue($client->status),
-            'redirect_uris' => $this->management->redirectUris($client->id),
-            'scopes' => $this->management->scopeNames($client->id),
+            'redirect_uris' => $configuration['redirect_uris'],
+            'scopes' => $configuration['scopes'],
             'created_at' => $client->created_at?->format(DATE_ATOM),
         ];
+    }
+
+    /**
+     * @param list<OAuthClient> $clients
+     * @return array<int, array{redirect_uris: list<string>, scopes: list<string>}>
+     */
+    private function configurations(array $clients): array
+    {
+        return $this->management->clientConfigurations(array_map(
+            static fn (OAuthClient $client): int => $client->id,
+            $clients,
+        ));
     }
 
     private function enumValue(

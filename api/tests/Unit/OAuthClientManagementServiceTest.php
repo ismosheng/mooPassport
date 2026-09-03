@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tests\Unit;
 
 use app\common\model\OAuthClient;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
@@ -38,6 +39,7 @@ final class OAuthClientManagementServiceTest extends TestCase
             $this->createStub(RefreshTokenRepositoryInterface::class),
             new SecureToken(),
             new PasswordHasher(),
+            $this->createStub(TransactionManagerInterface::class),
         );
 
         self::assertSame($client, $service->detail(7, 'moo_other_owner', false));

@@ -32,6 +32,7 @@ use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\repository\contract\PasswordResetTokenRepositoryInterface;
 use app\common\repository\contract\UserRepositoryInterface;
 use app\common\repository\contract\UserSessionRepositoryInterface;
+use app\common\repository\contract\SystemSettingReaderInterface;
 use app\common\repository\contract\RoleRepositoryInterface;
 use app\common\repository\eloquent\AccessTokenRepository;
 use app\common\repository\eloquent\ApplicationRepository;
@@ -52,11 +53,13 @@ use app\common\repository\eloquent\RefreshTokenRepository;
 use app\common\repository\eloquent\PasswordResetTokenRepository;
 use app\common\repository\eloquent\UserRepository;
 use app\common\repository\eloquent\UserSessionRepository;
+use app\common\repository\eloquent\SystemSettingReader;
 use app\common\repository\eloquent\RoleRepository;
 use app\common\service\RoleService;
 use app\admin\middleware\RequirePermission;
 use app\admin\controller\DashboardController;
 use app\admin\controller\ApplicationController;
+use app\admin\controller\ApplicationAssetController;
 use app\admin\controller\UserController;
 use app\admin\controller\AuditLogController;
 use app\admin\controller\RoleController;
@@ -75,6 +78,7 @@ use app\admin\repository\contract\SystemSettingsRepositoryInterface;
 use app\admin\repository\eloquent\SystemSettingsRepository;
 use app\admin\service\DashboardService;
 use app\admin\service\ApplicationManagementService;
+use app\admin\service\ApplicationLogoService;
 use app\admin\service\SystemSettingsService;
 use app\admin\controller\SystemSettingsController;
 use app\common\support\IpAddress;
@@ -82,6 +86,8 @@ use app\common\support\PasswordHasher;
 use app\common\support\SecureToken;
 use app\common\infrastructure\mail\MailSenderInterface;
 use app\common\infrastructure\mail\SymfonyMailSender;
+use app\common\infrastructure\storage\ConfiguredObjectStorage;
+use app\common\infrastructure\storage\ObjectStorageInterface;
 use app\common\infrastructure\database\DatabaseTransactionManager;
 use app\common\infrastructure\database\TransactionManagerInterface;
 use app\passport\controller\AuthController;
@@ -94,6 +100,7 @@ use app\passport\middleware\ResolveSession;
 use app\passport\service\ConsentManagementService;
 use app\passport\service\EmailVerificationService;
 use app\passport\service\ProfileService;
+use app\passport\service\ProfileAvatarService;
 use app\passport\service\SessionAuthenticationService;
 use app\passport\service\SessionManagementService;
 use app\oauth\service\OAuthClientValidationService;
@@ -121,6 +128,7 @@ use app\passport\service\PasswordService;
 use app\passport\controller\PasswordController;
 use app\passport\service\LoginService;
 use app\passport\service\RegisterService;
+use app\passport\service\MailTemplateService;
 use Psr\Container\ContainerInterface;
 
 return [
@@ -151,8 +159,10 @@ return [
         $container->get(OAuthClientManagementRepositoryInterface::class),
         $container->get(OAuthClientManagementService::class),
         $container->get(OAuthClientRepositoryInterface::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     SystemSettingsRepositoryInterface::class => static fn (): SystemSettingsRepositoryInterface => new SystemSettingsRepository(),
+    SystemSettingReaderInterface::class => static fn (): SystemSettingReaderInterface => new SystemSettingReader(),
     SystemSettingsService::class => static fn (ContainerInterface $container): SystemSettingsService => new SystemSettingsService(
         $container->get(SystemSettingsRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
@@ -169,6 +179,7 @@ return [
         $container->get(AccessTokenRepositoryInterface::class),
         $container->get(RefreshTokenRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     UserController::class => static fn (ContainerInterface $container): UserController => new UserController(
         $container->get(UserManagementService::class),
@@ -212,6 +223,7 @@ return [
         $container->get(RefreshTokenRepositoryInterface::class),
         new SecureToken(),
         new PasswordHasher(),
+        $container->get(TransactionManagerInterface::class),
     ),
     OAuthConsentRepositoryInterface::class => static fn (): OAuthConsentRepositoryInterface => new OAuthConsentRepository(),
     AuthorizationCodeRepositoryInterface::class => static fn (): AuthorizationCodeRepositoryInterface => new AuthorizationCodeRepository(),
@@ -229,13 +241,28 @@ return [
         (string) config('mail.from_address'),
         (string) config('mail.from_name'),
     ),
+    ObjectStorageInterface::class => static fn (ContainerInterface $container): ObjectStorageInterface => new ConfiguredObjectStorage(
+        $container->get(SystemSettingReaderInterface::class),
+    ),
+    ApplicationLogoService::class => static fn (ContainerInterface $container): ApplicationLogoService => new ApplicationLogoService(
+        $container->get(ObjectStorageInterface::class),
+    ),
+    ApplicationAssetController::class => static fn (ContainerInterface $container): ApplicationAssetController => new ApplicationAssetController(
+        $container->get(ApplicationLogoService::class),
+    ),
+    MailTemplateService::class => static fn (ContainerInterface $container): MailTemplateService => new MailTemplateService(
+        $container->get(SystemSettingReaderInterface::class),
+        (string) config('mail.verification_url'),
+        (string) config('app.name'),
+    ),
     EmailVerificationService::class => static fn (ContainerInterface $container): EmailVerificationService => new EmailVerificationService(
         $container->get(UserRepositoryInterface::class),
         $container->get(EmailVerificationTokenRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         $container->get(MailSenderInterface::class),
         new SecureToken(),
-        (string) config('mail.verification_url'),
+        $container->get(MailTemplateService::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     PasswordService::class => static fn (ContainerInterface $container): PasswordService => new PasswordService(
         $container->get(UserRepositoryInterface::class),
@@ -248,7 +275,8 @@ return [
         new SecureToken(),
         new PasswordHasher(),
         new IpAddress(),
-        (string) config('mail.password_reset_url'),
+        $container->get(MailTemplateService::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     SessionAuthenticationService::class => static fn (ContainerInterface $container): SessionAuthenticationService => new SessionAuthenticationService(
         $container->get(UserSessionRepositoryInterface::class),
@@ -266,6 +294,12 @@ return [
         $container->get(UserRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new IpAddress(),
+    ),
+    ProfileAvatarService::class => static fn (ContainerInterface $container): ProfileAvatarService => new ProfileAvatarService(
+        $container->get(UserRepositoryInterface::class),
+        $container->get(AuditLogRepositoryInterface::class),
+        new IpAddress(),
+        $container->get(ObjectStorageInterface::class),
     ),
     ConsentManagementService::class => static fn (ContainerInterface $container): ConsentManagementService => new ConsentManagementService(
         $container->get(OAuthConsentRepositoryInterface::class),
@@ -285,6 +319,7 @@ return [
         $container->get(AuthorizationCodeRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
+        $container->get(TransactionManagerInterface::class),
     ),
     TokenService::class => static fn (ContainerInterface $container): TokenService => new TokenService(
         $container->get(OAuthClientValidationService::class),
@@ -295,6 +330,7 @@ return [
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
         $container->get(IdTokenService::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     ClientCredentialsParser::class => static fn (): ClientCredentialsParser => new ClientCredentialsParser(),
     TokenRevocationService::class => static fn (ContainerInterface $container): TokenRevocationService => new TokenRevocationService(
@@ -303,6 +339,7 @@ return [
         $container->get(RefreshTokenRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
+        $container->get(TransactionManagerInterface::class),
     ),
     TokenIntrospectionService::class => static fn (ContainerInterface $container): TokenIntrospectionService => new TokenIntrospectionService(
         $container->get(OAuthClientValidationService::class),
@@ -338,6 +375,7 @@ return [
         new PasswordHasher(),
         new IpAddress(),
         $container->get(EmailVerificationService::class),
+        $container->get(TransactionManagerInterface::class),
     ),
     LoginService::class => static fn (ContainerInterface $container): LoginService => new LoginService(
         $container->get(UserRepositoryInterface::class),
@@ -347,6 +385,7 @@ return [
         new PasswordHasher(),
         new SecureToken(),
         new IpAddress(),
+        $container->get(TransactionManagerInterface::class),
     ),
     AuthController::class => static fn (ContainerInterface $container): AuthController => new AuthController(
         $container->get(RegisterService::class),
@@ -358,6 +397,7 @@ return [
     AccountController::class => static fn (ContainerInterface $container): AccountController => new AccountController(
         $container->get(SessionAuthenticationService::class),
         $container->get(ProfileService::class),
+        $container->get(ProfileAvatarService::class),
         $container->get(RoleService::class),
     ),
     ConsentController::class => static fn (ContainerInterface $container): ConsentController => new ConsentController(

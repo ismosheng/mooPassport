@@ -1,11 +1,66 @@
-version: "3"
 services:
-  webman:
-    build: .
-    container_name: docker-webman
+  api:
+    build:
+      context: .
+      target: application
     restart: unless-stopped
-    volumes:
-      - "./:/app"
+    env_file:
+      - .env
     ports:
-      - "8787:8787"
-    command: ["php", "start.php", "start" ]
+      - "${HTTP_PORT:-8787}:8787"
+    environment:
+      APP_ENV: "${APP_ENV:-production}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_URL: "${APP_URL:-http://localhost:8787}"
+      HTTP_LISTEN: "http://0.0.0.0:8787"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: "${DB_DATABASE:-moopassport}"
+      DB_USERNAME: "${DB_USERNAME:-moo_passport}"
+      DB_PASSWORD: "${DB_PASSWORD:-moo_passport_dev}"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OAUTH_ISSUER: "${OAUTH_ISSUER:-http://localhost:8787}"
+      OIDC_PRIVATE_KEY_ENCRYPTION_KEY: "${OIDC_PRIVATE_KEY_ENCRYPTION_KEY:-}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - runtime-data:/app/runtime
+      - upload-data:/app/public/uploads
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE:-moopassport}"
+      MYSQL_USER: "${DB_USERNAME:-moo_passport}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-moo_passport_dev}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-moo_passport_root_dev}"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:
+  runtime-data:
+  upload-data:

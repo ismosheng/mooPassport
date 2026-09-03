@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace app\oauth\service;
 
 use app\common\enum\TokenEndpointAuthMethod;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\support\SecureToken;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 
 /** 认证客户端并撤销其持有的 Access Token 或 Refresh Token。 */
 final class TokenRevocationService
@@ -22,6 +22,7 @@ final class TokenRevocationService
         private readonly RefreshTokenRepositoryInterface $refreshTokens,
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -86,7 +87,7 @@ final class TokenRevocationService
         }
 
         $now = $this->now();
-        Db::connection()->transaction(function () use ($token, $clientId, $now): void {
+        $this->transactions->run(function () use ($token, $clientId, $now): void {
             $this->refreshTokens->revokeFamily($token->family_id, $now);
             $this->accessTokens->revokeForClientAndUser($clientId, $token->user_id, $now);
             $this->auditLogs->record([

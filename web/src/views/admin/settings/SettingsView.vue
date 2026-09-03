@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { NButton, NEmpty, NForm, NFormItem, NInput, NInputNumber, NSkeleton, NSpace, NSwitch, useMessage } from 'naive-ui'
+import { NAlert, NButton, NEmpty, NForm, NFormItem, NInput, NInputNumber, NSelect, NSkeleton, NSpace, NSwitch, NTag, useMessage } from 'naive-ui'
 import { getSettings, updateSettings } from '../../../api/settings.js'
+import MailTemplateEditor from './components/MailTemplateEditor.vue'
 
 const message = useMessage()
 const loading = ref(true)
@@ -16,6 +17,8 @@ const groupMeta = {
   auth: { title: '账号安全', description: '注册开关与登录会话策略' },
   oauth: { title: 'OAuth / OIDC', description: '令牌有效期与协议策略' },
   audit: { title: '安全审计', description: '在线审计数据保留策略' },
+  storage: { title: '文件存储', description: '上传文件的本地或七牛云存储策略' },
+  mail: { title: '邮件模板', description: '验证邮箱与密码重置邮件内容' },
 }
 
 const groups = computed(() => {
@@ -29,6 +32,17 @@ const groups = computed(() => {
 })
 
 const activeItems = computed(() => groups.value.find((group) => group.key === activeGroup.value)?.items || [])
+const storageCredentialConfigured = computed(() => items.value.find((item) => item.key === 'storage.driver')?.credential_configured === true)
+
+function selectOptions(item) {
+  return Object.entries(item.options || {}).map(([value, label]) => ({ value, label }))
+}
+
+function showItem(item) {
+  return activeGroup.value !== 'storage'
+    || item.key === 'storage.driver'
+    || values['storage.driver'] === 'qiniu'
+}
 
 function selectInitialGroup() {
   if (!groups.value.some((group) => group.key === activeGroup.value)) activeGroup.value = groups.value[0]?.key || ''
@@ -106,11 +120,26 @@ onMounted(load)
           <h2>{{ groups.find((group) => group.key === activeGroup)?.title }}</h2>
           <p>{{ groups.find((group) => group.key === activeGroup)?.description }}</p>
         </header>
-        <n-form label-placement="top">
-          <n-form-item v-for="item in activeItems" :key="item.key" :label="item.description">
+        <MailTemplateEditor v-if="activeGroup === 'mail'" :items="activeItems" :values="values" />
+        <n-alert v-if="activeGroup === 'storage' && values['storage.driver'] === 'local'" type="info" :show-icon="false" class="storage-notice">
+          文件将保存到服务器 <code>public/uploads</code>，请确保目录可写，并将该目录纳入备份。
+        </n-alert>
+        <n-alert v-else-if="activeGroup === 'storage'" type="info" :show-icon="false" class="storage-notice">
+          <div class="credential-status">
+            <span>七牛 AK / SK 仅从后端项目根目录的 <code>.env</code> 读取，后台不会展示或保存密钥。</span>
+            <n-tag :type="storageCredentialConfigured ? 'success' : 'warning'" size="small" :bordered="false">
+              {{ storageCredentialConfigured ? '密钥已配置' : '密钥未配置' }}
+            </n-tag>
+          </div>
+          修改环境变量后需要重启 Webman 才会生效。
+        </n-alert>
+        <n-form v-if="activeGroup !== 'mail'" label-placement="top">
+          <n-form-item v-for="item in activeItems.filter(showItem)" :key="item.key" :label="item.label">
+            <template #feedback>{{ item.description }}</template>
             <n-switch v-if="item.type === 'boolean'" v-model:value="values[item.key]" />
             <n-input-number v-else-if="item.type === 'integer'" v-model:value="values[item.key]" :min="item.min" :max="item.max" :show-button="false" />
-            <n-input v-else v-model:value="values[item.key]" />
+            <n-select v-else-if="item.options" v-model:value="values[item.key]" :options="selectOptions(item)" />
+            <n-input v-else v-model:value="values[item.key]" :type="item.multiline ? 'textarea' : 'text'" :maxlength="item.max_length || undefined" :autosize="item.multiline ? { minRows: 3, maxRows: 10 } : false" />
           </n-form-item>
         </n-form>
         <div class="settings-form-footer">
@@ -136,12 +165,16 @@ onMounted(load)
 .settings-form-panel{min-width:0;padding:14px 16px;border:1px solid var(--admin-border);border-radius:var(--radius-lg);background:var(--color-bg-surface)}
 .settings-form-panel header{padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--admin-border)}
 .settings-form-panel h2{margin:0 0 4px;color:var(--admin-heading);font-size:var(--admin-font-lg)}
-.settings-form-panel :deep(.n-form-item){max-width:560px;margin-bottom:8px}
+.settings-form-panel :deep(.n-form-item){max-width:760px;margin-bottom:8px}
 .settings-form-panel :deep(.n-form-item-label){padding-bottom:4px}
+.settings-form-panel :deep(.n-form-item-feedback-wrapper){min-height:18px;color:var(--admin-muted);font-size:var(--admin-font-xs)}
 .settings-form-panel :deep(.n-input-number){width:100%}
+.storage-notice{max-width:760px;margin-bottom:12px;font-size:var(--admin-font-sm)}
+.storage-notice code{font-size:var(--admin-font-xs)}
+.credential-status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
 .settings-form-footer{margin-top:2px;padding-top:12px;border-top:1px solid var(--admin-border);color:var(--admin-muted);font-size:var(--admin-font-xs)}
 .settings-loading{display:grid;grid-template-columns:210px minmax(0,1fr);gap:12px}
 .settings-loading :deep(.n-skeleton){margin-bottom:8px}
 @media(max-width:700px){.settings-header{display:grid}.settings-layout,.settings-loading{grid-template-columns:1fr}.settings-nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:480px){.settings-nav{grid-template-columns:1fr}.settings-page{padding-top:12px}.settings-form-panel{padding:12px}}
+@media(max-width:480px){.settings-nav{grid-template-columns:1fr}.settings-page{padding-top:12px}.settings-form-panel{padding:12px}.credential-status{align-items:flex-start;flex-direction:column}}
 </style>

@@ -6,6 +6,7 @@ namespace app\passport\service;
 
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\User;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\LoginAttemptRepositoryInterface;
@@ -19,7 +20,6 @@ use app\passport\dto\LoginResult;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 
 /**
  * 验证本地账号，并创建仅持久化令牌哈希的浏览器会话。
@@ -41,6 +41,7 @@ final class LoginService
         private readonly PasswordHasher $passwordHasher,
         private readonly SecureToken $secureToken,
         private readonly IpAddress $ipAddress,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -76,7 +77,7 @@ final class LoginService
         $expiresAt = $now->add(new DateInterval('PT' . self::SESSION_LIFETIME_SECONDS . 'S'));
 
         /** @var LoginResult $result */
-        $result = Db::connection()->transaction(function () use (
+        $result = $this->transactions->run(function () use (
             $user,
             $input,
             $identifierHash,
@@ -115,6 +116,7 @@ final class LoginService
                 'ip_address' => $binaryIp,
                 'user_agent' => $this->truncateUserAgent($input->userAgent),
                 'success' => true,
+                'created_at' => $now,
             ]);
 
             return new LoginResult($user, $sessionToken, $expiresAt);
@@ -148,6 +150,7 @@ final class LoginService
             'user_agent' => $this->truncateUserAgent($input->userAgent),
             'success' => false,
             'details' => ['reason' => $reason],
+            'created_at' => $now,
         ]);
     }
 

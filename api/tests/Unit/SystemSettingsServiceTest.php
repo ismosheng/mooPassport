@@ -17,6 +17,84 @@ use PHPUnit\Framework\TestCase;
 /** 覆盖系统设置白名单、范围限制、并发版本和审计安全边界。 */
 final class SystemSettingsServiceTest extends TestCase
 {
+    public function testPublicUrlDefaultUsesDeploymentConfiguration(): void
+    {
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::once())->method('allByKey')->willReturn([]);
+
+        $items = $this->service($settings)->all();
+
+        $configuredUrl = trim((string) config('mail.verification_url'));
+        self::assertSame($configuredUrl === '' ? 'http://127.0.0.1:3000' : $configuredUrl, $items['site.public_url']['value']);
+        self::assertSame('公开访问地址', $items['site.public_url']['label']);
+    }
+
+    public function testStorageSettingsExposeDriversWithoutSecrets(): void
+    {
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::once())->method('allByKey')->willReturn([]);
+
+        $items = $this->service($settings)->all();
+
+        self::assertSame(['local' => '本地存储', 'qiniu' => '七牛云存储'], $items['storage.driver']['options']);
+        self::assertArrayHasKey('credential_configured', $items['storage.driver']);
+        self::assertArrayNotHasKey('access_key', $items);
+        self::assertArrayNotHasKey('secret_key', $items);
+    }
+
+    public function testUnknownStorageDriverIsRejected(): void
+    {
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::never())->method('findForUpdate');
+
+        $this->expectBusinessError(
+            'setting_invalid_option',
+            fn () => $this->service($settings)->update(7, ['storage.driver' => 's3'], []),
+        );
+    }
+
+    public function testInvalidQiniuDomainIsRejected(): void
+    {
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::never())->method('findForUpdate');
+
+        $this->expectBusinessError(
+            'setting_invalid_url',
+            fn () => $this->service($settings)->update(7, ['storage.qiniu.domain' => 'not-a-url'], []),
+        );
+    }
+
+    public function testInvalidQiniuPrefixIsRejected(): void
+    {
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::never())->method('findForUpdate');
+
+        $this->expectBusinessError(
+            'setting_invalid_path_prefix',
+            fn () => $this->service($settings)->update(7, ['storage.qiniu.prefix' => '../avatars'], []),
+        );
+    }
+
+    public function testQiniuCannotBeEnabledWithoutCompleteConfiguration(): void
+    {
+        if (trim((string) config('storage.qiniu.access_key')) !== '' && trim((string) config('storage.qiniu.secret_key')) !== '') {
+            self::markTestSkipped('当前测试环境已经配置七牛密钥。');
+        }
+
+        $settings = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $settings->expects(self::once())->method('allByKey')->willReturn([]);
+        $settings->expects(self::never())->method('findForUpdate');
+
+        $this->expectBusinessError(
+            'qiniu_not_configured',
+            fn () => $this->service($settings)->update(7, [
+                'storage.driver' => 'qiniu',
+                'storage.qiniu.bucket' => 'moo-passport',
+                'storage.qiniu.domain' => 'https://cdn.example.com',
+            ], []),
+        );
+    }
+
     public function testUnknownSettingIsRejected(): void
     {
         $settings = $this->createMock(SystemSettingsRepositoryInterface::class);

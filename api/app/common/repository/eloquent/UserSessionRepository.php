@@ -51,6 +51,25 @@ final class UserSessionRepository implements UserSessionRepositoryInterface
         return $sessions;
     }
 
+    public function paginateActiveForUser(int $userId, DateTimeImmutable $now, int $page, int $perPage): array
+    {
+        $query = (new UserSession())->newQuery()
+            ->where('user_id', $userId)
+            ->whereNull('revoked_at')
+            ->where('expires_at', '>', $now);
+
+        $total = (clone $query)->count();
+        /** @var list<UserSession> $sessions */
+        $sessions = $query
+            ->orderByDesc('last_seen_at')
+            ->orderByDesc('id')
+            ->forPage($page, $perPage)
+            ->get()
+            ->all();
+
+        return ['items' => $sessions, 'total' => $total];
+    }
+
     public function create(array $attributes): UserSession
     {
         return UserSession::query()->create($attributes);

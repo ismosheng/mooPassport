@@ -8,6 +8,7 @@ use app\admin\repository\contract\UserManagementRepositoryInterface;
 use app\admin\service\UserManagementService;
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\User;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
@@ -29,6 +30,7 @@ final class UserManagementServiceTest extends TestCase
             $this->createStub(AccessTokenRepositoryInterface::class),
             $this->createStub(RefreshTokenRepositoryInterface::class),
             $this->createStub(AuditLogRepositoryInterface::class),
+            $this->createStub(TransactionManagerInterface::class),
         );
         try {
             $service->changeStatus(7, '01TESTUSER0000000000000000', UserStatus::Disabled, null);
@@ -50,6 +52,7 @@ final class UserManagementServiceTest extends TestCase
             $this->createStub(AccessTokenRepositoryInterface::class),
             $this->createStub(RefreshTokenRepositoryInterface::class),
             $this->createStub(AuditLogRepositoryInterface::class),
+            $this->createStub(TransactionManagerInterface::class),
         );
         try {
             $service->forceLogout(7, '01TESTUSER0000000000000000', null);

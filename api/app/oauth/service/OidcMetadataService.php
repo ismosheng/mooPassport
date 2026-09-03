@@ -27,7 +27,7 @@ final class OidcMetadataService
             'authorization_endpoint' => $issuer . '/oauth/authorize',
             'token_endpoint' => $issuer . '/oauth/token',
             'userinfo_endpoint' => $issuer . '/oauth/userinfo',
-            'jwks_uri' => $issuer . '/oauth/jwks',
+            'jwks_uri' => $issuer . '/.well-known/jwks.json',
             'revocation_endpoint' => $issuer . '/oauth/revoke',
             'introspection_endpoint' => $issuer . '/oauth/introspect',
             'response_types_supported' => ['code'],

@@ -9,6 +9,7 @@ use app\common\enum\OAuthClientStatus;
 use app\common\enum\OAuthClientType;
 use app\common\enum\TokenEndpointAuthMethod;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\OAuthClient;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
@@ -23,7 +24,6 @@ use app\common\dto\CreatedOAuthClient;
 use app\common\dto\UpdateOAuthClientInput;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 use Symfony\Component\Uid\Ulid;
 
 /**
@@ -42,6 +42,7 @@ final class OAuthClientManagementService
         private readonly RefreshTokenRepositoryInterface $refreshTokens,
         private readonly SecureToken $secureToken,
         private readonly PasswordHasher $passwordHasher,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -77,7 +78,7 @@ final class OAuthClientManagementService
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         /** @var CreatedOAuthClient $result */
-        $result = Db::connection()->transaction(function () use (
+        $result = $this->transactions->run(function () use (
             $ownerUserId,
             $input,
             $applicationType,
@@ -197,7 +198,7 @@ final class OAuthClientManagementService
         }
 
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        Db::connection()->transaction(function () use (
+        $this->transactions->run(function () use (
             $client,
             $ownerUserId,
             $input,
@@ -250,7 +251,7 @@ final class OAuthClientManagementService
 
         $plainSecret = 'ms_' . $this->secureToken->generate(48);
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        Db::connection()->transaction(function () use ($client, $ownerUserId, $plainSecret, $now): void {
+        $this->transactions->run(function () use ($client, $ownerUserId, $plainSecret, $now): void {
             // 新旧 Secret 不设置重叠窗口，事务提交后旧 Secret 立即失效。
             $this->management->revokeSecretsForClient($client->id, $now);
             $this->management->createSecret([
@@ -280,7 +281,7 @@ final class OAuthClientManagementService
     {
         $client = $this->detail($ownerUserId, $clientId, $enforceOwnership);
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        Db::connection()->transaction(function () use ($client, $ownerUserId, $status, $now): void {
+        $this->transactions->run(function () use ($client, $ownerUserId, $status, $now): void {
             $client->status = $status;
             $this->clients->save($client);
             if ($status === OAuthClientStatus::Disabled) {
@@ -310,6 +311,15 @@ final class OAuthClientManagementService
     public function scopeNames(int $internalClientId): array
     {
         return $this->management->scopeNames($internalClientId);
+    }
+
+    /**
+     * @param list<int> $clientIds
+     * @return array<int, array{redirect_uris: list<string>, scopes: list<string>}>
+     */
+    public function clientConfigurations(array $clientIds): array
+    {
+        return $this->management->configurationsByClientIds($clientIds);
     }
 
     /**

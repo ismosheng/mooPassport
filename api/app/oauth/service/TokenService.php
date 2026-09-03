@@ -8,6 +8,7 @@ use app\common\enum\GrantType;
 use app\common\enum\TokenEndpointAuthMethod;
 use app\common\enum\UserStatus;
 use app\common\exception\OAuthProtocolException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\OAuthAuthorizationCode;
 use app\common\model\OAuthRefreshToken;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
@@ -20,7 +21,6 @@ use app\oauth\dto\TokenResult;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 use Symfony\Component\Uid\Ulid;
 
 /** 校验授权码与 PKCE 绑定关系，并原子签发不透明访问令牌。 */
@@ -35,6 +35,7 @@ final class TokenService
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
         private readonly IdTokenService $idTokens,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -85,7 +86,7 @@ final class TokenService
         $refreshTokenTtl = max(300, (int) $client->refresh_token_ttl);
 
         /** @var string|null $idToken */
-        $idToken = Db::connection()->transaction(function () use (
+        $idToken = $this->transactions->run(function () use (
             $codeHash,
             $authorizationCode,
             $client,
@@ -194,7 +195,7 @@ final class TokenService
         $accessTokenTtl = max(60, (int) $client->access_token_ttl);
 
         /** @var TokenResult|null $result */
-        $result = Db::connection()->transaction(function () use (
+        $result = $this->transactions->run(function () use (
             $tokenHash,
             $storedToken,
             $client,
@@ -315,7 +316,7 @@ final class TokenService
 
     private function revokeReplayedFamily(OAuthRefreshToken $token, DateTimeImmutable $now): void
     {
-        Db::connection()->transaction(function () use ($token, $now): void {
+        $this->transactions->run(function () use ($token, $now): void {
             $this->refreshTokens->revokeFamily($token->family_id, $now);
             // Access Token 未保存 family_id，只能按用户与客户端扩大撤销范围以立即止损。
             $this->accessTokens->revokeForClientAndUser($token->client_id, $token->user_id, $now);

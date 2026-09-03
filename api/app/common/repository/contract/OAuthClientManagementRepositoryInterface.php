@@ -43,4 +43,10 @@ interface OAuthClientManagementRepositoryInterface
 
     /** @return list<string> */
     public function scopeNames(int $clientId): array;
+
+    /**
+     * @param list<int> $clientIds
+     * @return array<int, array{redirect_uris: list<string>, scopes: list<string>}>
+     */
+    public function configurationsByClientIds(array $clientIds): array;
 }

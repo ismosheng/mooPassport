@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\admin\service;
 
 use app\common\exception\BusinessException;
+use app\common\infrastructure\storage\ObjectStorageInterface;
 use finfo;
 use Webman\Http\UploadFile;
 
@@ -18,6 +19,10 @@ final class ApplicationLogoService
         'image/webp' => 'webp',
     ];
 
+    public function __construct(private readonly ObjectStorageInterface $storage)
+    {
+    }
+
     public function store(UploadFile $file): string
     {
         if (!$file->isValid() || $file->getSize() <= 0 || $file->getSize() > 2 * 1024 * 1024) {
@@ -28,8 +33,8 @@ final class ApplicationLogoService
             throw new BusinessException('invalid_application_logo_type', '仅支持 PNG、JPEG 和 WebP 图标。', 422);
         }
 
-        $name = bin2hex(random_bytes(20)) . '.' . self::MIME_EXTENSIONS[$mime];
-        $file->move(public_path() . '/uploads/application-logos/' . $name);
-        return rtrim((string) config('app.url'), '/') . '/uploads/application-logos/' . $name;
+        $key = 'application-logos/' . gmdate('Ymd') . '/'
+            . bin2hex(random_bytes(20)) . '.' . self::MIME_EXTENSIONS[$mime];
+        return $this->storage->put($file->getPathname(), $key);
     }
 }

@@ -55,6 +55,7 @@ final class AuthController
                 'username' => $result->user->username,
                 'email' => $result->user->email,
                 'display_name' => $result->user->display_name,
+                'avatar_url' => $result->user->avatar_url ?: '/passport/v1/avatar/default',
                 'status' => $this->statusValue($result->user->status),
             ],
             'email_verification_required' => true,
@@ -81,6 +82,7 @@ final class AuthController
                 'username' => $result->user->username,
                 'email' => $result->user->email,
                 'display_name' => $result->user->display_name,
+                'avatar_url' => $result->user->avatar_url ?: '/passport/v1/avatar/default',
                 'status' => $this->statusValue($result->user->status),
             ],
         ]);

@@ -128,4 +128,36 @@ final class OAuthClientManagementRepository implements OAuthClientManagementRepo
 
         return $names;
     }
+
+    public function configurationsByClientIds(array $clientIds): array
+    {
+        $clientIds = array_values(array_unique($clientIds));
+        if ($clientIds === []) {
+            return [];
+        }
+
+        $configurations = [];
+        foreach ($clientIds as $clientId) {
+            $configurations[$clientId] = ['redirect_uris' => [], 'scopes' => []];
+        }
+
+        $redirects = OAuthClientRedirectUri::query()
+            ->whereIn('client_id', $clientIds)
+            ->orderBy('id')
+            ->get(['client_id', 'redirect_uri']);
+        foreach ($redirects as $redirect) {
+            $configurations[(int) $redirect->client_id]['redirect_uris'][] = (string) $redirect->redirect_uri;
+        }
+
+        $scopes = OAuthClientScope::query()
+            ->join('moo_oauth_scopes as scopes', 'scopes.id', '=', 'moo_oauth_client_scopes.scope_id')
+            ->whereIn('moo_oauth_client_scopes.client_id', $clientIds)
+            ->orderBy('scopes.name')
+            ->get(['moo_oauth_client_scopes.client_id', 'scopes.name']);
+        foreach ($scopes as $scope) {
+            $configurations[(int) $scope->client_id]['scopes'][] = (string) $scope->name;
+        }
+
+        return $configurations;
+    }
 }

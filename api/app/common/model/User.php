@@ -18,8 +18,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $password_hash
  * @property string $display_name
  * @property string|null $avatar_url
+ * @property string|null $phone_country_code
+ * @property string|null $phone_number
  * @property UserStatus $status
  * @property DateTimeImmutable|null $email_verified_at
+ * @property DateTimeImmutable|null $phone_verified_at
  * @property DateTimeImmutable|null $last_login_at
  * @property DateTimeImmutable|null $password_changed_at
  * @property DateTimeImmutable $created_at

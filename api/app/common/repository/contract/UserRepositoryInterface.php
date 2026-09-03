@@ -21,6 +21,8 @@ interface UserRepositoryInterface
 
     public function emailExists(string $email): bool;
 
+    public function phoneExists(string $countryCode, string $phoneNumber, ?int $excludeUserId = null): bool;
+
     /** @param array<string, mixed> $attributes */
     public function create(array $attributes): User;
 

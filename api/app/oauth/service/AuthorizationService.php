@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\oauth\service;
 
 use app\common\exception\OAuthProtocolException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
 use app\common\repository\contract\OAuthConsentRepositoryInterface;
@@ -15,7 +16,6 @@ use app\passport\dto\AuthenticatedSession;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 
 /** 校验授权请求，并根据用户决定签发一次性授权码或拒绝授权。 */
 final class AuthorizationService
@@ -29,6 +29,7 @@ final class AuthorizationService
         private readonly AuthorizationCodeRepositoryInterface $authorizationCodes,
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -94,7 +95,7 @@ final class AuthorizationService
         $rawCode = $this->secureToken->generate();
         $scopeNames = $request->scopeNames();
 
-        Db::connection()->transaction(function () use ($request, $identity, $now, $rawCode, $scopeNames): void {
+        $this->transactions->run(function () use ($request, $identity, $now, $rawCode, $scopeNames): void {
             $this->consents->grant($identity->user->id, $request->client->id, $scopeNames, null);
             $this->authorizationCodes->create([
                 'code_hash' => $this->secureToken->hash($rawCode),

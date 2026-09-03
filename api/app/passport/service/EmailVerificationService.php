@@ -6,6 +6,7 @@ namespace app\passport\service;
 
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\infrastructure\mail\MailSenderInterface;
 use app\common\model\User;
 use app\common\repository\contract\AuditLogRepositoryInterface;
@@ -15,7 +16,6 @@ use app\common\support\SecureToken;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use support\Db;
 
 /** 签发并消费一次性邮箱验证令牌。 */
 final class EmailVerificationService
@@ -29,7 +29,8 @@ final class EmailVerificationService
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly MailSenderInterface $mailSender,
         private readonly SecureToken $secureToken,
-        private readonly string $verificationBaseUrl,
+        private readonly MailTemplateService $mailTemplates,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -48,7 +49,7 @@ final class EmailVerificationService
         $rawToken = $this->secureToken->generate();
         $expiresAt = $now->add(new DateInterval('PT' . self::TOKEN_LIFETIME_MINUTES . 'M'));
 
-        Db::connection()->transaction(function () use ($user, $rawToken, $now, $expiresAt): void {
+        $this->transactions->run(function () use ($user, $rawToken, $now, $expiresAt): void {
             $this->tokens->invalidateOutstandingForUser($user->id, $now);
             $this->tokens->create([
                 'user_id' => $user->id,
@@ -61,15 +62,13 @@ final class EmailVerificationService
         });
 
         // URL fragment 不会随 HTTP 请求发送到服务器，可降低令牌进入访问日志或 Referer 的风险。
-        $verificationUrl = $this->verificationBaseUrl . '/verify-email#token=' . rawurlencode($rawToken);
-        $safeUrl = htmlspecialchars($verificationUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $safeName = htmlspecialchars($user->display_name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $message = $this->mailTemplates->verification($user, $rawToken, self::TOKEN_LIFETIME_MINUTES);
 
         $this->mailSender->send(
             $user->email,
-            '验证你的哞哞通行证邮箱',
-            "你好，{$user->display_name}：\n\n请在 30 分钟内打开以下链接完成邮箱验证：\n{$verificationUrl}\n\n如果不是你本人操作，请忽略此邮件。",
-            "<p>你好，{$safeName}：</p><p>请在 30 分钟内完成邮箱验证。</p><p><a href=\"{$safeUrl}\">验证邮箱</a></p><p>如果不是你本人操作，请忽略此邮件。</p>",
+            $message['subject'],
+            $message['text'],
+            $message['html'],
         );
     }
 
@@ -84,7 +83,7 @@ final class EmailVerificationService
         }
 
         /** @var User $user */
-        $user = Db::connection()->transaction(function () use ($challenge, $tokenHash, $now): User {
+        $user = $this->transactions->run(function () use ($challenge, $tokenHash, $now): User {
             if (!$this->tokens->consume($tokenHash, $now)) {
                 throw new BusinessException('invalid_verification_token', '验证链接无效或已过期。', 400);
             }

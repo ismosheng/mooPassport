@@ -8,6 +8,7 @@ use app\common\exception\OAuthProtocolException;
 use app\oauth\service\TokenIntrospectionService;
 use app\oauth\support\ClientCredentialsParser;
 use support\annotation\route\DisableDefaultRoute;
+use support\annotation\route\Get;
 use support\annotation\route\Post;
 use Webman\Http\Request;
 use Webman\Http\Response;
@@ -20,6 +21,15 @@ final class TokenIntrospectionController
         private readonly TokenIntrospectionService $introspection,
         private readonly ClientCredentialsParser $credentialsParser,
     ) {
+    }
+
+    #[Get('/oauth/introspect', 'oauth.token.introspect.method_not_allowed')]
+    public function methodNotAllowed(): Response
+    {
+        return $this->noStore(json([
+            'error' => 'invalid_request',
+            'error_description' => '内省端点必须使用 POST 表单请求。',
+        ])->withStatus(405)->withHeader('Allow', 'POST'));
     }
 
     #[Post('/oauth/introspect', 'oauth.token.introspect')]

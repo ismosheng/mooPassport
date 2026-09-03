@@ -28,7 +28,7 @@ final class SessionManagementService
     }
 
     /**
-     * @return list<array{
+     * @return array{items:list<array{
      *     id: string,
      *     is_current: bool,
      *     ip_address: ?string,
@@ -36,17 +36,18 @@ final class SessionManagementService
      *     last_seen_at: ?string,
      *     created_at: ?string,
      *     expires_at: ?string
-     * }>
+     * }>,total:int,page:int,per_page:int}
      */
-    public function list(AuthenticatedSession $identity): array
+    public function list(AuthenticatedSession $identity, int $page, int $perPage): array
     {
         $now = $this->now();
         $items = [];
-        foreach ($this->sessions->listActiveForUser($identity->user->id, $now) as $session) {
+        $result = $this->sessions->paginateActiveForUser($identity->user->id, $now, $page, $perPage);
+        foreach ($result['items'] as $session) {
             $items[] = $this->serialize($session, $session->id === $identity->session->id);
         }
 
-        return $items;
+        return ['items' => $items, 'total' => $result['total'], 'page' => $page, 'per_page' => $perPage];
     }
 
     /**

@@ -6,13 +6,13 @@ namespace app\passport\service;
 
 use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\UserRepositoryInterface;
 use app\common\support\IpAddress;
 use app\common\support\PasswordHasher;
 use app\passport\dto\RegisterInput;
 use app\passport\dto\RegisterResult;
-use support\Db;
 use Symfony\Component\Uid\Ulid;
 
 /**
@@ -28,6 +28,7 @@ final class RegisterService
         private readonly PasswordHasher $passwordHasher,
         private readonly IpAddress $ipAddress,
         private readonly EmailVerificationService $emailVerification,
+        private readonly TransactionManagerInterface $transactions,
     ) {
     }
 
@@ -46,7 +47,7 @@ final class RegisterService
         $passwordHash = $this->passwordHasher->hash($input->password);
 
         /** @var RegisterResult $result */
-        $result = Db::connection()->transaction(function () use ($input, $username, $email, $passwordHash): RegisterResult {
+        $result = $this->transactions->run(function () use ($input, $username, $email, $passwordHash): RegisterResult {
             $user = $this->users->create([
                 'public_id' => (string) new Ulid(),
                 'username' => $username,

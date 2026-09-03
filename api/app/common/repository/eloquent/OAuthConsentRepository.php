@@ -43,6 +43,27 @@ final class OAuthConsentRepository implements OAuthConsentRepositoryInterface
         return $consents;
     }
 
+    public function paginateActiveForUser(int $userId, DateTimeImmutable $now, int $page, int $perPage): array
+    {
+        $query = (new OAuthConsent())->newQuery()
+            ->where('user_id', $userId)
+            ->whereNull('revoked_at')
+            ->where(static function ($query) use ($now): void {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', $now);
+            });
+
+        $total = (clone $query)->count();
+        /** @var list<OAuthConsent> $consents */
+        $consents = $query
+            ->orderByDesc('granted_at')
+            ->orderByDesc('id')
+            ->forPage($page, $perPage)
+            ->get()
+            ->all();
+
+        return ['items' => $consents, 'total' => $total];
+    }
+
     public function grant(int $userId, int $clientId, array $scopes, ?DateTimeImmutable $expiresAt): OAuthConsent
     {
         return OAuthConsent::query()->updateOrCreate(

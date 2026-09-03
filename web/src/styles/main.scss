@@ -53,9 +53,6 @@ a:hover { color: var(--color-primary-hover); }
 .account-shell { min-height: 100vh; background: var(--color-bg-page); }
 .account-topbar { height: 64px; padding: 0 max(24px, calc((100vw - var(--content-width)) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); background: var(--color-bg-surface); }
 .account-topbar-actions { display: flex; align-items: center; gap: 8px; }
-.account-topbar-user { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--color-bg-subtle); }
-.account-topbar-avatar { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); color: #fff; background: var(--color-primary); font-size: var(--font-size-xs); font-weight: 600; }
-.account-topbar-name { max-width: 140px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .account-frame {
   width: min(calc(100% - 48px), var(--content-width));
   margin: 24px auto 48px;
@@ -92,8 +89,8 @@ a:hover { color: var(--color-primary-hover); }
 .account-nav-item em { margin-left: auto; color: var(--color-text-tertiary); font-size: var(--font-size-xs); font-style: normal; font-weight: 400; }
 .account-main { min-width: 0; }
 .account-page { display: grid; gap: 16px; width: 100%; }
-.account-toolbar { display: flex; justify-content: flex-end; }
-.account-avatar { width: 58px; height: 58px; display: grid; place-items: center; flex: 0 0 auto; border-radius: var(--radius-lg); color: #fff; background: var(--color-primary); font-size: var(--font-size-xl); font-weight: 600; }
+.account-avatar { width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; border-radius: var(--radius-lg); color: #fff; background: var(--color-primary); font-size: var(--font-size-xl); font-weight: 600; }
+.account-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .account-avatar-lg { width: 56px; height: 56px; border-radius: var(--radius-xl); font-size: var(--font-size-xl); }
 .account-overview-card { padding-top: 24px; }
 .account-hero-main { padding: 0 24px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--color-border); }
@@ -155,9 +152,13 @@ a:hover { color: var(--color-primary-hover); }
 .session-body dl div { display: flex; gap: 8px; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 .session-body dt { min-width: 56px; }
 .session-body dd { margin: 0; overflow-wrap: anywhere; color: var(--color-text-secondary); }
+.session-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .session-empty {
   padding: 40px 24px; border: 1px dashed var(--color-border); border-radius: var(--radius-xl);
   color: var(--color-text-tertiary); text-align: center; background: var(--color-bg-surface);
+}
+.account-list-footer {
+  min-height: 36px; display: flex; align-items: center; justify-content: center;
 }
 .legal-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--color-bg-page); }
 .legal-topbar {
@@ -246,9 +247,8 @@ a:hover { color: var(--color-primary-hover); }
   .account-overview > div { grid-template-columns: 1fr; gap: 4px; }
 }
 @media (max-width: 760px) {
-  .account-topbar-name { display: none; }
   .session-item { flex-wrap: wrap; }
-  .session-item > .n-button { margin-left: auto; }
+  .session-actions { width: 100%; justify-content: flex-end; }
 }
 @media (max-width: 520px) {
   .auth-visual-background { background-image: var(--auth-mobile-image); background-position: center; background-repeat: no-repeat; background-size: cover; }

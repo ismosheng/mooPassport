@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+.idea
+.vscode
+Dockerfile*
+docker-compose*.yml
+runtime/*
+!runtime/.gitignore
+public/uploads/*
+vendor
+tests
+phpunit.xml*
+phpstan.neon*
+.php-cs-fixer*

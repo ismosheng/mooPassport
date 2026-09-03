@@ -53,14 +53,16 @@ final class ApplicationController
             redirectUris: array_values(array_map('strval', (array) ($data['redirect_uris'] ?? []))),
             loginScopes: array_values(array_map('strval', (array) ($data['login_scopes'] ?? ['openid', 'profile']))),
         ));
+        $clients = array_map(
+            static fn (array $item): OAuthClient => $item['created']->client,
+            $result['clients'],
+        );
+        $configurations = $this->configurations($clients);
 
         return ApiResponse::success($request, [
-            ...$this->serializeApplication($result['application'], array_map(
-                static fn (array $item): OAuthClient => $item['created']->client,
-                $result['clients'],
-            )),
+            ...$this->serializeApplication($result['application'], $clients, $configurations),
             'clients' => array_map(fn (array $item): array => [
-                ...$this->serializeClient($item['created']->client),
+                ...$this->serializeClient($item['created']->client, $configurations),
                 'purpose' => $item['purpose'],
                 'client_secret' => $item['created']->plainSecret,
             ], $result['clients']),
@@ -77,8 +79,14 @@ final class ApplicationController
         $page = max(1, (int) $request->get('page', 1));
         $perPage = min(100, max(10, (int) $request->get('per_page', 20)));
         $result = $this->management->search($keyword, $status, $page, $perPage);
+        $clients = array_merge(...array_map(static fn (array $item): array => $item['clients'], $result['items']));
+        $configurations = $this->configurations($clients);
         $items = array_map(
-            fn (array $item): array => $this->serializeApplication($item['application'], $item['clients']),
+            fn (array $item): array => $this->serializeApplication(
+                $item['application'],
+                $item['clients'],
+                $configurations,
+            ),
             $result['items'],
         );
 
@@ -91,7 +99,11 @@ final class ApplicationController
     public function detail(Request $request, string $applicationId): Response
     {
         $result = $this->management->detail($applicationId);
-        return ApiResponse::success($request, $this->serializeApplication($result['application'], $result['clients']));
+        return ApiResponse::success($request, $this->serializeApplication(
+            $result['application'],
+            $result['clients'],
+            $this->configurations($result['clients']),
+        ));
     }
 
     #[Put('/{applicationId}', 'admin.v1.applications.update')]
@@ -105,7 +117,11 @@ final class ApplicationController
             isset($data['description']) ? (string) $data['description'] : null,
             isset($data['logo_url']) ? (string) $data['logo_url'] : null,
         );
-        return ApiResponse::success($request, $this->serializeApplication($result['application'], $result['clients']));
+        return ApiResponse::success($request, $this->serializeApplication(
+            $result['application'],
+            $result['clients'],
+            $this->configurations($result['clients']),
+        ));
     }
 
     #[Delete('/{applicationId}', 'admin.v1.applications.delete')]
@@ -117,11 +133,15 @@ final class ApplicationController
 
     /**
      * @param list<OAuthClient> $clients
+     * @param array<int, array{redirect_uris: list<string>, scopes: list<string>}> $configurations
      * @return array<string, mixed>
      */
-    private function serializeApplication(Application $application, array $clients): array
+    private function serializeApplication(Application $application, array $clients, array $configurations): array
     {
-        $serializedClients = array_map(fn (OAuthClient $client): array => $this->serializeClient($client), $clients);
+        $serializedClients = array_map(
+            fn (OAuthClient $client): array => $this->serializeClient($client, $configurations),
+            $clients,
+        );
         return [
             'id' => $application->public_id,
             'name' => $application->name,
@@ -137,9 +157,14 @@ final class ApplicationController
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function serializeClient(OAuthClient $client): array
+    /**
+     * @param array<int, array{redirect_uris: list<string>, scopes: list<string>}> $configurations
+     * @return array<string, mixed>
+     */
+    private function serializeClient(OAuthClient $client, array $configurations): array
     {
+        $configuration = $configurations[$client->id] ?? ['redirect_uris' => [], 'scopes' => []];
+
         return [
             'client_id' => $client->client_id,
             'name' => $client->name,
@@ -147,9 +172,21 @@ final class ApplicationController
             'application_type' => $this->enumValue($client->application_type),
             'token_endpoint_auth_method' => $this->enumValue($client->token_endpoint_auth_method),
             'status' => $this->enumValue($client->status),
-            'redirect_uris' => $this->management->redirectUris($client->id),
-            'scopes' => $this->management->scopeNames($client->id),
+            'redirect_uris' => $configuration['redirect_uris'],
+            'scopes' => $configuration['scopes'],
         ];
+    }
+
+    /**
+     * @param list<OAuthClient> $clients
+     * @return array<int, array{redirect_uris: list<string>, scopes: list<string>}>
+     */
+    private function configurations(array $clients): array
+    {
+        return $this->management->clientConfigurations(array_map(
+            static fn (OAuthClient $client): int => $client->id,
+            $clients,
+        ));
     }
 
     private function enumValue(OAuthClientType|OAuthApplicationType|TokenEndpointAuthMethod|OAuthClientStatus|string $value): string

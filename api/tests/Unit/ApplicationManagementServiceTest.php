@@ -7,6 +7,7 @@ namespace tests\Unit;
 use app\admin\service\ApplicationManagementService;
 use app\common\model\Application;
 use app\common\model\OAuthClient;
+use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\ApplicationRepositoryInterface;
 use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
 use app\common\repository\contract\OAuthClientRepositoryInterface;
@@ -31,6 +32,7 @@ final class ApplicationManagementServiceTest extends TestCase
             $clients,
             (new ReflectionClass(OAuthClientManagementService::class))->newInstanceWithoutConstructor(),
             $this->createStub(OAuthClientRepositoryInterface::class),
+            $this->createStub(TransactionManagerInterface::class),
         );
         $result = $service->search(' 素材 ', 'active', 2, 20);
         self::assertSame(21, $result['total']);
