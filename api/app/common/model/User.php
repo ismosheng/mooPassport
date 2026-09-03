@@ -20,6 +20,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $avatar_url
  * @property string|null $phone_country_code
  * @property string|null $phone_number
+ * @property string|null $gender
+ * @property DateTimeImmutable|null $birth_date
+ * @property string|null $bio
+ * @property string|null $real_name_encrypted
+ * @property string|null $identity_document_type
+ * @property string|null $identity_document_number_encrypted
+ * @property string|null $identity_document_number_hash
+ * @property string $realname_status
+ * @property DateTimeImmutable|null $realname_verified_at
  * @property UserStatus $status
  * @property DateTimeImmutable|null $email_verified_at
  * @property DateTimeImmutable|null $phone_verified_at
@@ -35,18 +44,25 @@ final class User extends BaseModel
 
     protected $fillable = [
         'public_id', 'username', 'email', 'phone_country_code', 'phone_number',
-        'password_hash', 'display_name', 'avatar_url', 'status',
+        'password_hash', 'display_name', 'avatar_url', 'gender', 'birth_date', 'bio',
+        'real_name_encrypted', 'identity_document_type', 'identity_document_number_encrypted',
+        'identity_document_number_hash', 'realname_status', 'realname_verified_at', 'status',
         'email_verified_at', 'phone_verified_at', 'password_changed_at',
         'last_login_at',
     ];
 
-    protected $hidden = ['password_hash'];
+    protected $hidden = [
+        'password_hash', 'real_name_encrypted', 'identity_document_number_encrypted',
+        'identity_document_number_hash',
+    ];
 
     /** @var array<string, string> */
     protected $casts = [
         'status' => UserStatus::class,
         'email_verified_at' => 'immutable_datetime',
         'phone_verified_at' => 'immutable_datetime',
+        'birth_date' => 'immutable_date',
+        'realname_verified_at' => 'immutable_datetime',
         'password_changed_at' => 'immutable_datetime',
         'last_login_at' => 'immutable_datetime',
         'created_at' => 'immutable_datetime',

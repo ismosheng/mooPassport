@@ -34,7 +34,7 @@ final class AccessTokenAuthenticationService
 
         $token = $this->accessTokens->findActiveByHash(
             $this->secureToken->hash($rawToken),
-            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')),
         );
         if ($token === null || $token->user_id === null) {
             throw $this->invalidToken();

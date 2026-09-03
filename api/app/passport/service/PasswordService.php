@@ -164,6 +164,6 @@ final class PasswordService
 
     private function now(): DateTimeImmutable
     {
-        return new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        return new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
     }
 }

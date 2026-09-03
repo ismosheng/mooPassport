@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\oauth\service;
 
+use app\common\dto\AuditContext;
 use app\common\enum\GrantType;
 use app\common\enum\TokenEndpointAuthMethod;
 use app\common\enum\UserStatus;
@@ -17,6 +18,7 @@ use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\repository\contract\UserRepositoryInterface;
 use app\common\support\SecureToken;
+use app\common\support\IpAddress;
 use app\oauth\dto\TokenResult;
 use DateInterval;
 use DateTimeImmutable;
@@ -34,6 +36,7 @@ final class TokenService
         private readonly UserRepositoryInterface $users,
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
+        private readonly IpAddress $ipAddress,
         private readonly IdTokenService $idTokens,
         private readonly TransactionManagerInterface $transactions,
     ) {
@@ -46,6 +49,7 @@ final class TokenService
         string $code,
         string $redirectUri,
         string $codeVerifier,
+        ?AuditContext $auditContext = null,
     ): TokenResult {
         $client = $this->clientValidation->authenticateTokenClient(
             $clientId,
@@ -96,6 +100,7 @@ final class TokenService
             $refreshToken,
             $accessTokenTtl,
             $refreshTokenTtl,
+            $auditContext,
         ): ?string {
             // 条件更新是授权码单次使用的最终安全边界，并发交换只能成功一次。
             if (!$this->authorizationCodes->consume($codeHash, $now)) {
@@ -129,6 +134,7 @@ final class TokenService
                 'event_type' => 'oauth.token.issued',
                 'user_id' => $authorizationCode->user_id,
                 'client_id' => $client->id,
+                ...$this->auditAttributes($auditContext),
                 'success' => true,
                 'details' => [
                     'grant_type' => GrantType::AuthorizationCode->value,
@@ -159,6 +165,7 @@ final class TokenService
         TokenEndpointAuthMethod $authenticationMethod,
         string $rawRefreshToken,
         ?string $requestedScope,
+        ?AuditContext $auditContext = null,
     ): TokenResult {
         $client = $this->clientValidation->authenticateTokenClient(
             $clientId,
@@ -177,7 +184,7 @@ final class TokenService
         }
 
         if ($storedToken->used_at !== null) {
-            $this->revokeReplayedFamily($storedToken, $now);
+            $this->revokeReplayedFamily($storedToken, $now, $auditContext);
             throw $this->invalidGrant();
         }
         if ($storedToken->revoked_at !== null || $storedToken->expires_at <= $now) {
@@ -204,6 +211,7 @@ final class TokenService
             $newAccessToken,
             $newRefreshToken,
             $accessTokenTtl,
+            $auditContext,
         ): ?TokenResult {
             if (!$this->refreshTokens->consume($tokenHash, $now)) {
                 // 此分支表示并发重放；必须提交整个令牌族的撤销，不能在事务内抛异常回滚。
@@ -213,7 +221,7 @@ final class TokenService
                     $storedToken->user_id,
                     $now,
                 );
-                $this->recordRefreshReplay($storedToken, $now);
+                $this->recordRefreshReplay($storedToken, $now, $auditContext);
                 return null;
             }
 
@@ -244,6 +252,7 @@ final class TokenService
                 'event_type' => 'oauth.token.refreshed',
                 'user_id' => $storedToken->user_id,
                 'client_id' => $client->id,
+                ...$this->auditAttributes($auditContext),
                 'success' => true,
                 'details' => ['grant_type' => GrantType::RefreshToken->value],
             ]);
@@ -314,22 +323,31 @@ final class TokenService
         return $requested;
     }
 
-    private function revokeReplayedFamily(OAuthRefreshToken $token, DateTimeImmutable $now): void
+    private function revokeReplayedFamily(
+        OAuthRefreshToken $token,
+        DateTimeImmutable $now,
+        ?AuditContext $auditContext,
+    ): void
     {
-        $this->transactions->run(function () use ($token, $now): void {
+        $this->transactions->run(function () use ($token, $now, $auditContext): void {
             $this->refreshTokens->revokeFamily($token->family_id, $now);
             // Access Token 未保存 family_id，只能按用户与客户端扩大撤销范围以立即止损。
             $this->accessTokens->revokeForClientAndUser($token->client_id, $token->user_id, $now);
-            $this->recordRefreshReplay($token, $now);
+            $this->recordRefreshReplay($token, $now, $auditContext);
         });
     }
 
-    private function recordRefreshReplay(OAuthRefreshToken $token, DateTimeImmutable $now): void
+    private function recordRefreshReplay(
+        OAuthRefreshToken $token,
+        DateTimeImmutable $now,
+        ?AuditContext $auditContext,
+    ): void
     {
         $this->auditLogs->record([
             'event_type' => 'oauth.refresh_token.replayed',
             'user_id' => $token->user_id,
             'client_id' => $token->client_id,
+            ...$this->auditAttributes($auditContext),
             'success' => false,
             'details' => [
                 'family_id' => $token->family_id,
@@ -346,6 +364,20 @@ final class TokenService
 
     private function now(): DateTimeImmutable
     {
-        return new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        return new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
+    }
+
+    /** @return array{request_id:string,ip_address:?string,user_agent:?string}|array{} */
+    private function auditAttributes(?AuditContext $context): array
+    {
+        if ($context === null) {
+            return [];
+        }
+
+        return [
+            'request_id' => $context->requestId,
+            'ip_address' => $this->ipAddress->toBinary($context->ipAddress),
+            'user_agent' => $context->userAgent === null ? null : mb_substr($context->userAgent, 0, 500),
+        ];
     }
 }

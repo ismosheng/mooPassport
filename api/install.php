@@ -25,6 +25,7 @@ const EXPECTED_TABLES = [
     'moo_oauth_client_secrets',
     'moo_oauth_clients',
     'moo_oauth_consents',
+    'moo_oauth_pushed_authorization_requests',
     'moo_oauth_refresh_tokens',
     'moo_oauth_scopes',
     'moo_oauth_signing_keys',
@@ -78,9 +79,9 @@ function promptSecret(string $label): string
     fail('当前终端无法安全读取管理员密码，请通过 MOO_INSTALL_ADMIN_PASSWORD 环境变量提供。');
 }
 
-function ensureEncryptionKey(string $environmentFile): string
+function ensureEncryptionKey(string $environmentFile, string $variable, string $description): string
 {
-    $key = trim((string) (getenv('OIDC_PRIVATE_KEY_ENCRYPTION_KEY') ?: ''));
+    $key = trim((string) (getenv($variable) ?: ''));
     if ($key !== '') {
         return $key;
     }
@@ -91,17 +92,18 @@ function ensureEncryptionKey(string $environmentFile): string
     }
 
     $key = base64_encode(random_bytes(32));
-    $line = 'OIDC_PRIVATE_KEY_ENCRYPTION_KEY=' . $key;
-    $updated = preg_match('/^OIDC_PRIVATE_KEY_ENCRYPTION_KEY=.*$/m', $contents) === 1
-        ? preg_replace('/^OIDC_PRIVATE_KEY_ENCRYPTION_KEY=.*$/m', $line, $contents)
+    $line = $variable . '=' . $key;
+    $pattern = '/^' . preg_quote($variable, '/') . '=.*$/m';
+    $updated = preg_match($pattern, $contents) === 1
+        ? preg_replace($pattern, $line, $contents)
         : rtrim($contents) . PHP_EOL . $line . PHP_EOL;
     if (!is_string($updated) || file_put_contents($environmentFile, $updated, LOCK_EX) === false) {
-        fail('无法把 OIDC 私钥加密主密钥写入 .env。');
+        fail('无法把' . $description . '写入 .env。');
     }
 
-    putenv('OIDC_PRIVATE_KEY_ENCRYPTION_KEY=' . $key);
-    $_ENV['OIDC_PRIVATE_KEY_ENCRYPTION_KEY'] = $key;
-    $_SERVER['OIDC_PRIVATE_KEY_ENCRYPTION_KEY'] = $key;
+    putenv($variable . '=' . $key);
+    $_ENV[$variable] = $key;
+    $_SERVER[$variable] = $key;
     return $key;
 }
 
@@ -197,6 +199,11 @@ function validateInstallation(PDO $pdo, string $database): void
     }
 
     $requiredColumns = [
+        'moo_users' => [
+            'gender', 'birth_date', 'bio', 'real_name_encrypted', 'identity_document_type',
+            'identity_document_number_encrypted', 'identity_document_number_hash',
+            'realname_status', 'realname_verified_at',
+        ],
         'moo_applications' => ['logo_url'],
         'moo_oauth_clients' => ['application_id'],
         'moo_roles' => ['is_system', 'status', 'version'],
@@ -214,8 +221,12 @@ function validateInstallation(PDO $pdo, string $database): void
         }
     }
 
-    if ((int) $pdo->query("SELECT COUNT(*) FROM moo_oauth_scopes WHERE name = 'service'")->fetchColumn() !== 1) {
-        fail('缺少 service OAuth Scope。');
+    $requiredScopes = ['service', 'realname', 'realname_full'];
+    $scopePlaceholders = implode(', ', array_fill(0, count($requiredScopes), '?'));
+    $scopeQuery = $pdo->prepare("SELECT COUNT(*) FROM moo_oauth_scopes WHERE name IN ({$scopePlaceholders})");
+    $scopeQuery->execute($requiredScopes);
+    if ((int) $scopeQuery->fetchColumn() !== count($requiredScopes)) {
+        fail('缺少必要的 OAuth Scope：' . implode(', ', $requiredScopes) . '。');
     }
     $permissionCount = (int) $pdo->query('SELECT COUNT(*) FROM moo_permissions')->fetchColumn();
     $superPermissionCount = (int) $pdo->query(
@@ -271,7 +282,7 @@ function createAdministrator(PDO $pdo, array $options): void
         fail('管理员用户名或邮箱已存在。');
     }
 
-    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
     $pdo->beginTransaction();
     try {
         $insert = $pdo->prepare(
@@ -391,7 +402,8 @@ try {
         createAdministrator($pdo, $options);
     }
 
-    ensureEncryptionKey($environmentFile);
+    ensureEncryptionKey($environmentFile, 'OIDC_PRIVATE_KEY_ENCRYPTION_KEY', 'OIDC 私钥加密主密钥');
+    ensureEncryptionKey($environmentFile, 'USER_DATA_ENCRYPTION_KEY', '用户实名资料加密主密钥');
     App::loadAllConfig();
     /** @var ContainerInterface $container */
     $container = require __DIR__ . '/config/container.php';

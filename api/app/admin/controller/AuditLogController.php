@@ -49,7 +49,7 @@ final class AuditLogController
             'client' => $row->oauth_client_id ? ['client_id' => $row->oauth_client_id, 'name' => $row->client_name] : null,
             'details' => is_array($details) ? $details : [],
             'storage' => (string) $row->storage,
-            'created_at' => $row->created_at instanceof DateTimeInterface ? $row->created_at->format(DATE_ATOM) : (string) $row->created_at . '+00:00',
+            'created_at' => $row->created_at instanceof DateTimeInterface ? $row->created_at->format(DATE_ATOM) : (string) $row->created_at . '+08:00',
         ];
     }
 }

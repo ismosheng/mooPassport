@@ -75,7 +75,7 @@ final class OAuthClientManagementService
         $plainSecret = $clientType === OAuthClientType::Confidential
             ? 'ms_' . $this->secureToken->generate(48)
             : null;
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
 
         /** @var CreatedOAuthClient $result */
         $result = $this->transactions->run(function () use (
@@ -197,7 +197,7 @@ final class OAuthClientManagementService
             }
         }
 
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $this->transactions->run(function () use (
             $client,
             $ownerUserId,
@@ -250,7 +250,7 @@ final class OAuthClientManagementService
         }
 
         $plainSecret = 'ms_' . $this->secureToken->generate(48);
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $this->transactions->run(function () use ($client, $ownerUserId, $plainSecret, $now): void {
             // 新旧 Secret 不设置重叠窗口，事务提交后旧 Secret 立即失效。
             $this->management->revokeSecretsForClient($client->id, $now);
@@ -280,7 +280,7 @@ final class OAuthClientManagementService
     ): OAuthClient
     {
         $client = $this->detail($ownerUserId, $clientId, $enforceOwnership);
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $this->transactions->run(function () use ($client, $ownerUserId, $status, $now): void {
             $client->status = $status;
             $this->clients->save($client);

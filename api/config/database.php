@@ -14,6 +14,8 @@ return [
             'password'    => getenv('DB_PASSWORD') ?: '',
             'charset'     => getenv('DB_CHARSET') ?: 'utf8mb4',
             'collation'   => getenv('DB_COLLATION') ?: 'utf8mb4_unicode_ci',
+            // DATETIME 没有时区信息，连接时区必须与应用统一，避免数据库默认时间偏移。
+            'timezone'    => '+08:00',
             'prefix'      => '',
             'strict'      => true,
             'engine'      => null,

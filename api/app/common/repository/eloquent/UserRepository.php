@@ -59,6 +59,17 @@ final class UserRepository implements UserRepositoryInterface
         return $query->exists();
     }
 
+    public function identityDocumentHashExists(string $hash, ?int $excludeUserId = null): bool
+    {
+        $query = User::query()->where('identity_document_number_hash', $hash);
+
+        if ($excludeUserId !== null) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        return $query->exists();
+    }
+
     public function create(array $attributes): User
     {
         return User::query()->create($attributes);

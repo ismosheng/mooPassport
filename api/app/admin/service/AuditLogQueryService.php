@@ -10,7 +10,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Throwable;
 
-/** 组织安全审计只读检索，负责将管理端日期边界转换为 UTC。 */
+/** 组织安全审计只读检索，按北京时间解释管理端日期边界。 */
 final class AuditLogQueryService
 {
     public function __construct(private readonly AuditLogQueryRepositoryInterface $logs) {}
@@ -31,8 +31,7 @@ final class AuditLogQueryService
         if ($startedAt > $endedAt || $startedAt->diff($endedAt)->days > 31) {
             throw new BusinessException('audit_range_too_large', '单次最多查询 31 天审计日志。', 422);
         }
-        $utc = new DateTimeZone('UTC');
-        $result = $this->logs->search(trim($keyword), $eventType, $success, $startedAt->setTimezone($utc), $endedAt->setTimezone($utc), $page, $perPage);
+        $result = $this->logs->search(trim($keyword), $eventType, $success, $startedAt, $endedAt, $page, $perPage);
         return [...$result, 'page' => $page, 'per_page' => $perPage];
     }
 }

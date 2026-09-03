@@ -8,7 +8,7 @@
 - Redis
 - `league/oauth2-server` 9.4
 - PHP 代码遵循 PSR-12，新文件必须声明 `strict_types=1`
-- 数据库、Token 和协议时间统一使用 UTC；展示层按用户时区转换
+- 数据库、应用和协议日期时间统一使用 Asia/Shanghai（北京时间，UTC+8）
 
 ## 2. 应用与目录
 
@@ -171,7 +171,7 @@ GET  /.well-known/jwks.json
 
 - 成功 `code` 为 `0`。
 - HTTP 状态码表达 HTTP 结果，业务 `code` 表达具体业务错误。
-- 时间输出使用 RFC 3339 UTC 格式。
+- 时间输出使用带 `+08:00` 偏移的 RFC 3339 格式。
 - 禁止在响应中暴露堆栈、SQL、密钥和内部异常信息。
 
 OAuth/OIDC 端点严格按相关标准返回，不套普通业务响应结构。例如：

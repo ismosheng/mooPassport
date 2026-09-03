@@ -26,7 +26,7 @@ final class JwksService
     {
         $keys = array_map(
             fn (OAuthSigningKey $key): array => $this->sanitize($key),
-            $this->keys->findPublishable(new DateTimeImmutable('now', new DateTimeZone('UTC'))),
+            $this->keys->findPublishable(new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'))),
         );
 
         return ['keys' => $keys];

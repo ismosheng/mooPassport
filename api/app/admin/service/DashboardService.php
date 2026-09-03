@@ -20,7 +20,7 @@ final class DashboardService
     {
         return [
             'metrics' => $this->dashboard->summary(),
-            'updated_at' => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format(DATE_ATOM),
+            'updated_at' => (new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')))->format(DATE_ATOM),
         ];
     }
 }

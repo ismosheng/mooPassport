@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS `moo_users` (
   `password_hash` VARCHAR(255) NOT NULL,
   `display_name` VARCHAR(100) NOT NULL DEFAULT '',
   `avatar_url` VARCHAR(500) NULL,
+  `gender` ENUM('male','female','other','undisclosed') NULL,
+  `birth_date` DATE NULL,
+  `bio` VARCHAR(500) NULL,
+  `real_name_encrypted` VARBINARY(1024) NULL COMMENT 'Authenticated ciphertext; never store plaintext real names',
+  `identity_document_type` ENUM('id_card','passport','other') NULL,
+  `identity_document_number_encrypted` VARBINARY(1024) NULL COMMENT 'Authenticated ciphertext; never store plaintext document numbers',
+  `identity_document_number_hash` BINARY(32) NULL COMMENT 'Keyed HMAC used only for duplicate detection',
+  `realname_status` ENUM('unverified','pending','verified','rejected') NOT NULL DEFAULT 'unverified',
+  `realname_verified_at` DATETIME(6) NULL,
   `status` ENUM('pending','active','locked','disabled') NOT NULL DEFAULT 'pending',
   `email_verified_at` DATETIME(6) NULL,
   `phone_verified_at` DATETIME(6) NULL,
@@ -28,6 +37,8 @@ CREATE TABLE IF NOT EXISTS `moo_users` (
   UNIQUE KEY `uk_moo_users_username` (`username`),
   UNIQUE KEY `uk_moo_users_email` (`email`),
   UNIQUE KEY `uk_moo_users_phone` (`phone_country_code`, `phone_number`),
+  UNIQUE KEY `uk_moo_users_identity_document_hash` (`identity_document_number_hash`),
+  KEY `idx_moo_users_realname_status` (`realname_status`),
   KEY `idx_moo_users_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -319,6 +330,20 @@ CREATE TABLE IF NOT EXISTS `moo_oauth_consents` (
   CONSTRAINT `fk_moo_consent_client` FOREIGN KEY (`client_id`) REFERENCES `moo_oauth_clients` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `moo_oauth_pushed_authorization_requests` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `request_uri_hash` BINARY(32) NOT NULL COMMENT 'SHA-256 of the one-time request_uri',
+  `client_id` BIGINT UNSIGNED NOT NULL,
+  `parameters` JSON NOT NULL COMMENT 'Validated authorization parameters without client credentials',
+  `expires_at` DATETIME(6) NOT NULL,
+  `used_at` DATETIME(6) NULL,
+  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_moo_pushed_auth_requests_hash` (`request_uri_hash`),
+  KEY `idx_moo_pushed_auth_requests_expires` (`expires_at`),
+  CONSTRAINT `fk_moo_pushed_auth_requests_client` FOREIGN KEY (`client_id`) REFERENCES `moo_oauth_clients` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='短时一次性推送授权请求';
+
 CREATE TABLE IF NOT EXISTS `moo_oauth_authorization_codes` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `code_hash` BINARY(32) NOT NULL COMMENT 'SHA-256 of the authorization code',
@@ -423,8 +448,8 @@ CREATE TABLE IF NOT EXISTS `moo_audit_archive_runs` (
   `status` ENUM('running','completed','failed') NOT NULL COMMENT '本批归档状态',
   `row_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '本批成功归档行数',
   `error_message` VARCHAR(1000) NULL COMMENT '脱敏后的失败原因',
-  `started_at` DATETIME(6) NOT NULL COMMENT '开始时间（UTC）',
-  `finished_at` DATETIME(6) NULL COMMENT '结束时间（UTC）',
+  `started_at` DATETIME(6) NOT NULL COMMENT '开始时间（北京时间）',
+  `finished_at` DATETIME(6) NULL COMMENT '结束时间（北京时间）',
   PRIMARY KEY (`id`),
   KEY `idx_moo_audit_archive_month_started` (`archive_month`, `started_at`),
   KEY `idx_moo_audit_archive_status_started` (`status`, `started_at`)
@@ -447,10 +472,12 @@ CREATE TABLE IF NOT EXISTS `moo_system_settings` (
 
 INSERT INTO `moo_oauth_scopes` (`name`, `display_name`, `description`, `is_default`)
 VALUES
-  ('openid', 'OpenID', 'Request an OpenID Connect identity token', 1),
-  ('profile', 'Basic profile', 'Read the user public id, display name and avatar', 1),
-  ('email', 'Email address', 'Read the user email address and verification state', 0),
-  ('offline_access', 'Offline access', 'Allow issuance of a refresh token', 0),
+  ('openid', '账号身份', '使用哞哞账号完成 OpenID Connect 身份认证', 1),
+  ('profile', '基础资料', '读取用户公开 ID、显示名称和头像', 1),
+  ('email', '邮箱地址', '读取用户邮箱地址和验证状态', 0),
+  ('realname', '脱敏实名信息', '读取脱敏后的真实姓名、证件类型、证件号码和认证状态', 0),
+  ('realname_full', '完整实名信息', '读取完整真实姓名和证件号码，属于高敏感权限', 0),
+  ('offline_access', '离线访问', '允许应用获得刷新令牌并持续访问已授权信息', 0),
   ('service', '服务端 API', '允许应用使用 Client Credentials 进行机器间调用', 0)
 ON DUPLICATE KEY UPDATE
   `display_name` = VALUES(`display_name`),

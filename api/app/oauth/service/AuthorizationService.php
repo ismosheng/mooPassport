@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace app\oauth\service;
 
+use app\common\dto\AuditContext;
 use app\common\exception\OAuthProtocolException;
 use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
 use app\common\repository\contract\OAuthConsentRepositoryInterface;
+use app\common\repository\contract\OAuthPushedAuthorizationRequestRepositoryInterface;
 use app\common\repository\contract\OAuthScopeRepositoryInterface;
 use app\common\support\SecureToken;
+use app\common\support\IpAddress;
 use app\oauth\dto\AuthorizationRequest;
+use app\oauth\dto\ClientCredentials;
+use app\oauth\dto\PushedAuthorizationResult;
 use app\passport\dto\AuthenticatedSession;
 use DateInterval;
 use DateTimeImmutable;
@@ -21,14 +26,17 @@ use DateTimeZone;
 final class AuthorizationService
 {
     private const CODE_LIFETIME_SECONDS = 300;
+    private const PAR_LIFETIME_SECONDS = 60;
 
     public function __construct(
         private readonly OAuthClientValidationService $clientValidation,
         private readonly OAuthScopeRepositoryInterface $scopes,
         private readonly OAuthConsentRepositoryInterface $consents,
+        private readonly OAuthPushedAuthorizationRequestRepositoryInterface $pushedRequests,
         private readonly AuthorizationCodeRepositoryInterface $authorizationCodes,
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
+        private readonly IpAddress $ipAddress,
         private readonly TransactionManagerInterface $transactions,
     ) {
     }
@@ -36,6 +44,11 @@ final class AuthorizationService
     /** @param array<string, mixed> $parameters */
     public function validate(array $parameters): AuthorizationRequest
     {
+        $requestUri = $this->stringParameterOrNull($parameters, 'request_uri', 512);
+        if ($requestUri !== null) {
+            $parameters = $this->parametersFromPushedRequest($parameters, $requestUri);
+        }
+
         $clientId = $this->stringParameter($parameters, 'client_id');
         $redirectUri = $this->stringParameter($parameters, 'redirect_uri');
         $client = $this->clientValidation->resolveAuthorizationClient($clientId, $redirectUri);
@@ -72,7 +85,53 @@ final class AuthorizationService
             $codeChallenge,
             $state,
             $nonce,
+            $requestUri,
         );
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function push(
+        array $parameters,
+        ClientCredentials $credentials,
+        ?AuditContext $auditContext = null,
+    ): PushedAuthorizationResult {
+        $client = $this->clientValidation->authenticateTokenClient(
+            $credentials->clientId,
+            $credentials->clientSecret,
+            $credentials->method,
+        );
+        $parameters['client_id'] = $credentials->clientId;
+        unset($parameters['client_secret']);
+
+        $request = $this->validate($parameters);
+        $storedParameters = $this->pushedParameters($parameters, $request);
+        $requestUri = 'urn:ietf:params:oauth:request_uri:' . $this->secureToken->generate();
+        $now = $this->now();
+
+        $this->transactions->run(function () use (
+            $requestUri,
+            $client,
+            $storedParameters,
+            $now,
+            $auditContext,
+        ): void {
+            $this->pushedRequests->create([
+                'request_uri_hash' => $this->secureToken->hash($requestUri),
+                'client_id' => $client->id,
+                'parameters' => $storedParameters,
+                'expires_at' => $now->add(new DateInterval('PT' . self::PAR_LIFETIME_SECONDS . 'S')),
+                'created_at' => $now,
+            ]);
+            $this->auditLogs->record([
+                'event_type' => 'oauth.authorization.request_pushed',
+                'client_id' => $client->id,
+                ...$this->auditAttributes($auditContext),
+                'success' => true,
+                'details' => ['scopes' => $storedParameters['scope']],
+            ]);
+        });
+
+        return new PushedAuthorizationResult($requestUri, self::PAR_LIFETIME_SECONDS);
     }
 
     public function consentRequired(AuthorizationRequest $request, int $userId): bool
@@ -89,13 +148,18 @@ final class AuthorizationService
         return array_diff($request->scopeNames(), (array) $consent->scopes) !== [];
     }
 
-    public function approve(AuthorizationRequest $request, AuthenticatedSession $identity): string
+    public function approve(
+        AuthorizationRequest $request,
+        AuthenticatedSession $identity,
+        ?AuditContext $auditContext = null,
+    ): string
     {
         $now = $this->now();
         $rawCode = $this->secureToken->generate();
         $scopeNames = $request->scopeNames();
 
-        $this->transactions->run(function () use ($request, $identity, $now, $rawCode, $scopeNames): void {
+        $this->transactions->run(function () use ($request, $identity, $auditContext, $now, $rawCode, $scopeNames): void {
+            $this->consumePushedRequest($request, $now);
             $this->consents->grant($identity->user->id, $request->client->id, $scopeNames, null);
             $this->authorizationCodes->create([
                 'code_hash' => $this->secureToken->hash($rawCode),
@@ -114,6 +178,7 @@ final class AuthorizationService
                 'event_type' => 'oauth.authorization.approved',
                 'user_id' => $identity->user->id,
                 'client_id' => $request->client->id,
+                ...$this->auditAttributes($auditContext),
                 'success' => true,
                 'details' => ['scopes' => $scopeNames],
             ]);
@@ -125,15 +190,24 @@ final class AuthorizationService
         ]);
     }
 
-    public function deny(AuthorizationRequest $request, AuthenticatedSession $identity): string
+    public function deny(
+        AuthorizationRequest $request,
+        AuthenticatedSession $identity,
+        ?AuditContext $auditContext = null,
+    ): string
     {
-        $this->auditLogs->record([
-            'event_type' => 'oauth.authorization.denied',
-            'user_id' => $identity->user->id,
-            'client_id' => $request->client->id,
-            'success' => true,
-            'details' => ['scopes' => $request->scopeNames()],
-        ]);
+        $now = $this->now();
+        $this->transactions->run(function () use ($request, $identity, $auditContext, $now): void {
+            $this->consumePushedRequest($request, $now);
+            $this->auditLogs->record([
+                'event_type' => 'oauth.authorization.denied',
+                'user_id' => $identity->user->id,
+                'client_id' => $request->client->id,
+                ...$this->auditAttributes($auditContext),
+                'success' => true,
+                'details' => ['scopes' => $request->scopeNames()],
+            ]);
+        });
 
         return $this->errorRedirect($request, 'access_denied', '用户拒绝了授权请求。');
     }
@@ -200,6 +274,68 @@ final class AuthorizationService
         return $resolved;
     }
 
+    /**
+     * 解析 PAR 引用时只接受展示提示和决定字段，拒绝客户端再提交任何
+     * 协议参数；因此 URL 中手动改写 scope、redirect_uri 或 PKCE 会直接失败。
+     *
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
+     */
+    private function parametersFromPushedRequest(array $parameters, string $requestUri): array
+    {
+        foreach (array_keys($parameters) as $name) {
+            if (!in_array($name, ['request_uri', 'display', 'decision'], true)) {
+                throw new OAuthProtocolException('invalid_request', 'request_uri 不能与其他授权参数同时使用。');
+            }
+        }
+
+        $pushed = $this->pushedRequests->findUsableByHash(
+            $this->secureToken->hash($requestUri),
+            $this->now(),
+        );
+        if ($pushed === null) {
+            throw new OAuthProtocolException('invalid_request', 'request_uri 无效或已过期。');
+        }
+
+        /** @var array<string, mixed> $stored */
+        $stored = $pushed->parameters;
+        if (!isset($stored['client_id'], $stored['redirect_uri'], $stored['scope'])) {
+            throw new OAuthProtocolException('invalid_request', 'request_uri 数据无效。');
+        }
+
+        return $stored;
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
+     */
+    private function pushedParameters(array $parameters, AuthorizationRequest $request): array
+    {
+        $allowed = ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method', 'nonce', 'display'];
+        $stored = [];
+        foreach ($allowed as $name) {
+            $value = $parameters[$name] ?? null;
+            if (is_string($value) && $value !== '') {
+                $stored[$name] = $value;
+            }
+        }
+        $stored['scope'] = implode(' ', $request->scopeNames());
+        unset($stored['display']);
+
+        return $stored;
+    }
+
+    private function consumePushedRequest(AuthorizationRequest $request, DateTimeImmutable $now): void
+    {
+        if ($request->requestUri === null) {
+            return;
+        }
+        if (!$this->pushedRequests->consume($this->secureToken->hash($request->requestUri), $now)) {
+            throw new OAuthProtocolException('invalid_request', 'request_uri 无效、已过期或已使用。');
+        }
+    }
+
     /** @return list<string> */
     private function parseScopeNames(mixed $scope): array
     {
@@ -249,6 +385,20 @@ final class AuthorizationService
         return $value;
     }
 
+    /** @param array<string, mixed> $parameters */
+    private function stringParameterOrNull(array $parameters, string $name, int $maxLength): ?string
+    {
+        $value = $parameters[$name] ?? null;
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_string($value) || strlen($value) > $maxLength) {
+            throw new OAuthProtocolException('invalid_request', "{$name} 参数格式无效。");
+        }
+
+        return $value;
+    }
+
     /** @param array<string, string|null> $parameters */
     private function buildRedirect(string $redirectUri, array $parameters): string
     {
@@ -260,6 +410,20 @@ final class AuthorizationService
 
     private function now(): DateTimeImmutable
     {
-        return new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        return new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
+    }
+
+    /** @return array{request_id:string,ip_address:?string,user_agent:?string}|array{} */
+    private function auditAttributes(?AuditContext $context): array
+    {
+        if ($context === null) {
+            return [];
+        }
+
+        return [
+            'request_id' => $context->requestId,
+            'ip_address' => $this->ipAddress->toBinary($context->ipAddress),
+            'user_agent' => $context->userAgent === null ? null : mb_substr($context->userAgent, 0, 500),
+        ];
     }
 }

@@ -12,6 +12,7 @@ final readonly class LoginInput
         public string $password,
         public ?string $ipAddress,
         public ?string $userAgent,
+        public ?string $requestId = null,
     ) {
     }
 }

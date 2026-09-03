@@ -57,7 +57,7 @@ $connection = Db::connection();
 $connection->beginTransaction();
 
 try {
-    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
     $user = User::query()->create([
         'public_id' => (string) new Ulid(),
         'username' => 'e2e_' . bin2hex(random_bytes(4)),

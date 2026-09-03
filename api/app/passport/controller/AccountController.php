@@ -8,7 +8,9 @@ use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
 use app\common\support\ApiResponse;
 use app\common\service\RoleService;
+use app\common\service\UserSensitiveDataService;
 use app\passport\dto\AuthenticatedSession;
+use app\passport\dto\UpdateProfileInput;
 use app\passport\middleware\AuthenticateSession;
 use app\passport\service\ProfileAvatarService;
 use app\passport\service\ProfileService;
@@ -35,6 +37,7 @@ final class AccountController
         private readonly ProfileService $profile,
         private readonly ProfileAvatarService $avatars,
         private readonly RoleService $roles,
+        private readonly UserSensitiveDataService $sensitiveData,
     ) {
     }
 
@@ -67,9 +70,17 @@ final class AccountController
         $data = UpdateProfileValidator::make((array) $request->post())->validate();
         $user = $this->profile->updateProfile(
             $this->identity($request)->user,
-            (string) $data['display_name'],
-            isset($data['phone_country_code']) ? (string) $data['phone_country_code'] : null,
-            isset($data['phone_number']) ? (string) $data['phone_number'] : null,
+            new UpdateProfileInput(
+                (string) $data['display_name'],
+                isset($data['phone_country_code']) ? (string) $data['phone_country_code'] : null,
+                isset($data['phone_number']) ? (string) $data['phone_number'] : null,
+                isset($data['gender']) ? (string) $data['gender'] : null,
+                isset($data['birth_date']) ? (string) $data['birth_date'] : null,
+                isset($data['bio']) ? (string) $data['bio'] : null,
+                isset($data['real_name']) ? (string) $data['real_name'] : null,
+                isset($data['identity_document_type']) ? (string) $data['identity_document_type'] : null,
+                isset($data['identity_document_number']) ? (string) $data['identity_document_number'] : null,
+            ),
             $request->getRealIp(),
         );
 
@@ -127,11 +138,15 @@ final class AccountController
             'avatar_url' => $user->avatar_url ?: '/passport/v1/avatar/default',
             'phone_country_code' => $user->phone_country_code,
             'phone_number' => $user->phone_number,
+            'gender' => $user->gender,
+            'birth_date' => $user->birth_date?->format('Y-m-d'),
+            'bio' => $user->bio,
             'status' => $user->status instanceof UserStatus ? $user->status->value : $user->status,
             'email_verified_at' => $user->email_verified_at?->format(DATE_ATOM),
             'phone_verified_at' => $user->phone_verified_at?->format(DATE_ATOM),
             'created_at' => $user->created_at?->format(DATE_ATOM),
             'roles' => $this->roles->codesForUser($user->id),
+            ...$this->sensitiveData->ownerView($user),
         ];
     }
 

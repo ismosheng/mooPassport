@@ -11,8 +11,8 @@ export const routes = [
   { path: '/verify-email', name: 'verify-email', component: () => import('../views/auth/VerifyEmailView.vue'), meta: { authBackground: true } },
   { path: '/terms', name: 'terms', component: () => import('../views/legal/TermsView.vue') },
   { path: '/privacy', name: 'privacy', component: () => import('../views/legal/PrivacyView.vue') },
-  { path: '/oauth/authorize', name: 'oauth-authorize', component: () => import('../views/oauth/ConsentView.vue') },
-  // 外部应用从该页面入口发起授权，避免开发环境的 /oauth API 代理截获页面导航。
+  { path: '/oauth/authorize', name: 'oauth-authorize', component: () => import('../views/oauth/EmbeddedAuthorizeView.vue') },
+  // 外部应用优先使用该页面入口，避免开发环境的 /oauth API 代理截获页面导航。
   { path: '/connect/authorize', name: 'connect-authorize', component: () => import('../views/oauth/EmbeddedAuthorizeView.vue') },
   { path: '/oauth/error', name: 'oauth-error', component: () => import('../views/oauth/OAuthErrorView.vue') },
   { path: '/oauth/callback', name: 'oauth-callback', component: () => import('../views/oauth/OAuthCallbackView.vue') },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\oauth\controller;
 
+use app\common\service\UserSensitiveDataService;
 use app\oauth\dto\AccessTokenIdentity;
 use app\oauth\middleware\AuthenticateAccessToken;
 use support\annotation\Middleware;
@@ -18,6 +19,10 @@ use Webman\Http\Response;
 #[Middleware(AuthenticateAccessToken::class)]
 final class UserInfoController
 {
+    public function __construct(private readonly UserSensitiveDataService $sensitiveData)
+    {
+    }
+
     #[Get('/oauth/userinfo', 'oauth.userinfo.get')]
     public function get(Request $request): Response
     {
@@ -61,6 +66,11 @@ final class UserInfoController
         if ($identity->hasScope('email')) {
             $claims['email'] = $user->email;
             $claims['email_verified'] = $user->email_verified_at !== null;
+        }
+        if ($identity->hasScope('realname_full')) {
+            $claims = [...$claims, ...$this->sensitiveData->oauthClaims($user, true)];
+        } elseif ($identity->hasScope('realname')) {
+            $claims = [...$claims, ...$this->sensitiveData->oauthClaims($user, false)];
         }
 
         return json($claims)

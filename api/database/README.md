@@ -47,7 +47,7 @@ Remove-Item Env:MOO_INSTALL_ADMIN_PASSWORD
 php install.php --check
 ```
 
-检查模式验证 25 张业务表、关键增量字段、`service` Scope 和超级管理员权限种子，不修改数据。
+检查模式验证 26 张业务表、关键增量字段、`service` Scope 和超级管理员权限种子，不修改数据。
 
 ## 已有数据库升级
 

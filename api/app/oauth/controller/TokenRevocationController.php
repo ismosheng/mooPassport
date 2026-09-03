@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace app\oauth\controller;
 
+use app\common\dto\AuditContext;
 use app\common\exception\OAuthProtocolException;
+use app\common\support\RequestId;
 use app\oauth\service\TokenRevocationService;
 use app\oauth\support\ClientCredentialsParser;
 use support\annotation\route\DisableDefaultRoute;
@@ -59,6 +61,7 @@ final class TokenRevocationController
                 $credentials->method,
                 $rawToken,
                 $tokenTypeHint,
+                $this->auditContext($request),
             );
 
             return $this->noStore(response('', 200));
@@ -80,5 +83,16 @@ final class TokenRevocationController
         return $response
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('Pragma', 'no-cache');
+    }
+
+    private function auditContext(Request $request): AuditContext
+    {
+        $userAgent = $request->header('User-Agent');
+
+        return new AuditContext(
+            RequestId::get($request),
+            $request->getRealIp(),
+            is_string($userAgent) ? $userAgent : null,
+        );
     }
 }

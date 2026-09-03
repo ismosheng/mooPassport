@@ -19,14 +19,14 @@ final class AuditArchiveService
         $locked = $this->archives->acquireLock();
         if (!$locked) return ['batches' => 0, 'rows' => 0, 'dropped_archives' => 0];
         try {
-            $cutoff = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify(sprintf('-%d days', $retentionDays));
+            $cutoff = (new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')))->modify(sprintf('-%d days', $retentionDays));
             $batches = 0; $rows = 0;
             while ($batches < $maxBatches) {
                 $result = $this->archives->archiveBatch($cutoff, $batchSize);
                 if ($result === null) break;
                 $batches++; $rows += $result['row_count'];
             }
-            $dropped = $deleteEnabled ? $this->archives->purgeBefore((new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify(sprintf('-%d days', $coldRetentionDays))) : [];
+            $dropped = $deleteEnabled ? $this->archives->purgeBefore((new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')))->modify(sprintf('-%d days', $coldRetentionDays))) : [];
             return ['batches' => $batches, 'rows' => $rows, 'dropped_archives' => count($dropped)];
         } finally {
             $this->archives->releaseLock();

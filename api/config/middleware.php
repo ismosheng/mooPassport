@@ -14,6 +14,7 @@
 
 return [
     '' => [
+        app\common\middleware\RequestTracing::class,
         app\common\middleware\HttpSecurity::class,
     ],
 ];

@@ -26,7 +26,7 @@ final class IdTokenService
         OAuthAuthorizationCode $authorizationCode,
         string $accessToken,
     ): string {
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $expiresAt = $now->add(new DateInterval('PT' . max(60, (int) config('oauth.id_token_ttl')) . 'S'));
         $key = $this->signingKeys->ensureActiveKey();
         $scopes = $authorizationCode->scopes;

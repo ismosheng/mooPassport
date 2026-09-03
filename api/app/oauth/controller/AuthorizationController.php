@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace app\oauth\controller;
 
+use app\common\dto\AuditContext;
 use app\common\exception\OAuthProtocolException;
+use app\common\support\RequestId;
 use app\oauth\dto\AuthorizationRequest;
 use app\oauth\service\AuthorizationService;
 use app\passport\dto\AuthenticatedSession;
@@ -35,6 +37,11 @@ final class AuthorizationController
         try {
             $authorizationRequest = $this->authorization->validate($parameters);
         } catch (OAuthProtocolException $exception) {
+            // 授权页面通过 XHR 预检查参数时必须收到同源 JSON；若返回 302，浏览器会把
+            // 第三方 callback 当作 XHR 继续请求，并将正常的 OAuth 错误误报为 CORS。
+            if ($request->header('X-Moo-Authorization-Inspect') === '1') {
+                return $this->jsonProtocolError($exception);
+            }
             return $this->protocolError($parameters, $exception);
         }
 
@@ -95,11 +102,12 @@ final class AuthorizationController
             return $identity;
         }
         $decision = $parameters['decision'] ?? null;
+        $auditContext = $this->auditContext($request);
         if ($decision === 'approve') {
-            return redirect($this->authorization->approve($authorizationRequest, $identity));
+            return redirect($this->authorization->approve($authorizationRequest, $identity, $auditContext));
         }
         if ($decision === 'deny') {
-            return redirect($this->authorization->deny($authorizationRequest, $identity));
+            return redirect($this->authorization->deny($authorizationRequest, $identity, $auditContext));
         }
 
         return redirect($this->authorization->errorRedirect(
@@ -117,6 +125,11 @@ final class AuthorizationController
             return redirect($errorRedirect);
         }
 
+        return $this->jsonProtocolError($exception);
+    }
+
+    private function jsonProtocolError(OAuthProtocolException $exception): Response
+    {
         return json([
             'error' => $exception->oauthError,
             'error_description' => $exception->getMessage(),
@@ -134,5 +147,16 @@ final class AuthorizationController
         }
 
         return $identity;
+    }
+
+    private function auditContext(Request $request): AuditContext
+    {
+        $userAgent = $request->header('User-Agent');
+
+        return new AuditContext(
+            RequestId::get($request),
+            $request->getRealIp(),
+            is_string($userAgent) ? $userAgent : null,
+        );
     }
 }

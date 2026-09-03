@@ -12,6 +12,7 @@ use app\admin\validator\UpdateRoleValidator;
 use app\common\exception\BusinessException;
 use app\common\model\Role;
 use app\common\support\ApiResponse;
+use app\common\support\RequestId;
 use app\passport\dto\AuthenticatedSession;
 use app\passport\middleware\AuthenticateSession;
 use support\annotation\Middleware;
@@ -119,9 +120,8 @@ final class RoleController
         return $identity;
     }
 
-    private function requestId(Request $request): ?string
+    private function requestId(Request $request): string
     {
-        $requestId = (string) ($request->header('X-Request-ID') ?: '');
-        return $requestId !== '' ? $requestId : null;
+        return RequestId::get($request);
     }
 }

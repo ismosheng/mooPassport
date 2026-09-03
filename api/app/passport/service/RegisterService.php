@@ -62,6 +62,7 @@ final class RegisterService
                 'user_id' => $user->id,
                 'ip_address' => $this->ipAddress->toBinary($input->ipAddress),
                 'user_agent' => $this->truncateUserAgent($input->userAgent),
+                'request_id' => $input->requestId,
                 'success' => true,
                 'details' => ['email_verification_required' => true],
             ]);

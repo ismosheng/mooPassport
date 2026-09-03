@@ -14,6 +14,7 @@ final readonly class RegisterInput
         public string $displayName,
         public ?string $ipAddress,
         public ?string $userAgent,
+        public ?string $requestId = null,
     ) {
     }
 }

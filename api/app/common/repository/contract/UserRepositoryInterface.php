@@ -23,6 +23,8 @@ interface UserRepositoryInterface
 
     public function phoneExists(string $countryCode, string $phoneNumber, ?int $excludeUserId = null): bool;
 
+    public function identityDocumentHashExists(string $hash, ?int $excludeUserId = null): bool;
+
     /** @param array<string, mixed> $attributes */
     public function create(array $attributes): User;
 

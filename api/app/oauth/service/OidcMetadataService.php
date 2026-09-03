@@ -25,6 +25,7 @@ final class OidcMetadataService
         return [
             'issuer' => $issuer,
             'authorization_endpoint' => $issuer . '/oauth/authorize',
+            'pushed_authorization_request_endpoint' => $issuer . '/oauth/par',
             'token_endpoint' => $issuer . '/oauth/token',
             'userinfo_endpoint' => $issuer . '/oauth/userinfo',
             'jwks_uri' => $issuer . '/.well-known/jwks.json',

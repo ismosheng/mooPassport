@@ -6,6 +6,7 @@ namespace app\passport\controller;
 
 use app\common\enum\UserStatus;
 use app\common\support\ApiResponse;
+use app\common\support\RequestId;
 use app\passport\dto\LoginInput;
 use app\passport\dto\RegisterInput;
 use app\passport\service\LoginService;
@@ -47,6 +48,7 @@ final class AuthController
             displayName: (string) ($data['display_name'] ?? $data['username']),
             ipAddress: $request->getRealIp(),
             userAgent: is_string($userAgent) ? $userAgent : null,
+            requestId: RequestId::get($request),
         ));
 
         return ApiResponse::success($request, [
@@ -74,6 +76,7 @@ final class AuthController
             password: (string) $data['password'],
             ipAddress: $request->getRealIp(),
             userAgent: is_string($userAgent) ? $userAgent : null,
+            requestId: RequestId::get($request),
         ));
 
         $response = ApiResponse::success($request, [

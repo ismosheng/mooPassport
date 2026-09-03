@@ -25,11 +25,12 @@ Moo Passport 是一个基于 OAuth 2.1 和 OpenID Connect 的统一身份认证�
 moo-passport/
 ├── api/        # Webman API、OAuth/OIDC 服务、数据库脚本和测试
 ├── web/        # Vue 账号中心、授权页面和管理后台
+├── demo/       # 弹窗与页面跳转 OAuth 接入示例
 ├── AGENTS.md   # 仓库编码与架构约束
 └── README.md
 ```
 
-后端开发规范见 [`api/docs/DEVELOPMENT.md`](api/docs/DEVELOPMENT.md)，前端目录和启动说明见 [`web/README.md`](web/README.md)，视觉约束见 [`web/docs/DESIGN_SYSTEM.md`](web/docs/DESIGN_SYSTEM.md)。
+后端开发规范见 [`api/docs/DEVELOPMENT.md`](api/docs/DEVELOPMENT.md)，前端目录和启动说明见 [`web/README.md`](web/README.md)，视觉约束见 [`web/docs/DESIGN_SYSTEM.md`](web/docs/DESIGN_SYSTEM.md)，第三方应用接入示例见 [`demo/README.md`](demo/README.md)。
 
 ## 环境要求
 
@@ -56,7 +57,7 @@ php install.php
 php start.php start
 ```
 
-安装器会创建数据库结构、初始权限和 Scope、首个超级管理员、OIDC 加密主密钥及签名密钥。启动前请修改 `.env` 中的数据库、Redis、邮件和站点地址。
+安装器会创建数据库结构、初始权限和 Scope、首个超级管理员、OIDC 加密主密钥、用户实名资料加密主密钥及签名密钥。启动前请修改 `.env` 中的数据库、Redis、邮件和站点地址。两把加密主密钥都必须随 `.env` 安全备份；遗失 `USER_DATA_ENCRYPTION_KEY` 后，已保存的实名资料将无法恢复。
 
 自动化安装可通过 `--admin-username`、`--admin-email` 和 `--admin-display-name` 提供管理员资料，并通过临时环境变量 `MOO_INSTALL_ADMIN_PASSWORD` 提供密码。管理员密码不会写入 `.env`。检查已有数据库结构时执行：
 
@@ -66,6 +67,12 @@ php install.php --check
 
 安装器只用于空数据库，不会覆盖已有数据。数据库增量脚本位于 `api/database/migrations`，已有数据库升级时必须按文件名顺序执行。
 
+从旧版本升级实名资料和 PAR 功能时，先备份数据库和 `.env`，按文件名顺序执行
+`database/migrations/20260903_001_extend_user_profiles.sql` 和
+`database/migrations/20260903_002_add_pushed_authorization_requests.sql`。同时为
+`.env` 增加独立的 `USER_DATA_ENCRYPTION_KEY`（32 字节随机值的 Base64），最后重启
+Webman。不要复用 `OIDC_PRIVATE_KEY_ENCRYPTION_KEY`，也不要在密钥生成后随意更换。
+
 ### 前端
 
 ```bash
@@ -74,7 +81,7 @@ npm install
 npm run dev
 ```
 
-开发环境默认前端地址为 `http://localhost:3000`，后端地址为 `http://127.0.0.1:8787`。
+开发环境默认前端地址为 `http://127.0.0.1:3000`，后端地址为 `http://127.0.0.1:8787`。
 
 ## 质量检查
 
@@ -355,9 +362,11 @@ Nginx HTML 404，就说明请求已经到达 Webman。`/oauth/authorize` 还需�
 - 使用 HTTPS，并设置 `APP_ENV=production`、`APP_DEBUG=false` 和 `SESSION_SECURE=true`。
 - 使用独立的 MySQL、Redis 和 SMTP 凭据，禁止保留示例密码。
 - 设置随机且仅保存在服务端环境中的 `OIDC_PRIVATE_KEY_ENCRYPTION_KEY`。
+- 设置并安全备份独立的 `USER_DATA_ENCRYPTION_KEY`，用于加密实名资料和生成证件去重摘要。
 - 明确配置 `CORS_ALLOWED_ORIGINS`、`TRUSTED_PROXIES` 和 Cookie 域。
 - 不记录密码、客户端密钥、授权码、Token、MFA 密钥或签名私钥。
 - 上线前验证数据库备份、恢复流程和关键权限的 HTTP 403 边界。
+- 使用 PAR 时先向 `/oauth/par` 推送完整授权请求，再仅将返回的 `request_uri` 交给 `/oauth/authorize`；不要在授权 URL 中重复提交 `scope`、`redirect_uri` 或 PKCE 参数。
 
 ## 许可证
 

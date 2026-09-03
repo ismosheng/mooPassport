@@ -10,6 +10,7 @@ use app\common\enum\UserStatus;
 use app\common\exception\BusinessException;
 use app\common\model\User;
 use app\common\support\ApiResponse;
+use app\common\support\RequestId;
 use app\passport\dto\AuthenticatedSession;
 use app\passport\middleware\AuthenticateSession;
 use support\annotation\Middleware;
@@ -50,7 +51,7 @@ final class UserController
     {
         $status = UserStatus::tryFrom((string) $request->post('status'));
         if ($status === null) throw new BusinessException('invalid_user_status', '用户状态无效。', 422);
-        $user = $this->management->changeStatus($this->identity($request)->user->id, $userId, $status, (string) ($request->header('X-Request-ID') ?: ''));
+        $user = $this->management->changeStatus($this->identity($request)->user->id, $userId, $status, RequestId::get($request));
         return ApiResponse::success($request, $this->serialize($user, []));
     }
 
@@ -67,7 +68,7 @@ final class UserController
     #[Post('/{userId}/force-logout', 'admin.v1.users.force_logout')]
     public function forceLogout(Request $request, string $userId): Response
     {
-        $count = $this->management->forceLogout($this->identity($request)->user->id, $userId, (string) ($request->header('X-Request-ID') ?: ''));
+        $count = $this->management->forceLogout($this->identity($request)->user->id, $userId, RequestId::get($request));
         return ApiResponse::success($request, ['revoked_sessions' => $count]);
     }
 

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { NButton, NForm, NFormItem, NIcon, NInput, NSelect, NTag, NUpload, useMessage } from 'naive-ui'
-import { CameraOutline, PersonOutline, PhonePortraitOutline } from '@vicons/ionicons5'
+import { NAlert, NButton, NDatePicker, NForm, NFormItem, NIcon, NInput, NSelect, NTag, NUpload, useMessage } from 'naive-ui'
+import { CameraOutline, CardOutline, PersonOutline, PhonePortraitOutline } from '@vicons/ionicons5'
 import { updateProfile, uploadProfileAvatar } from '../../api/auth.js'
 import { useAuthStore } from '../../stores/auth.js'
 
@@ -14,6 +14,12 @@ const form = reactive({
   display_name: auth.user?.display_name || '',
   phone_country_code: auth.user?.phone_country_code || '+86',
   phone_number: auth.user?.phone_number || '',
+  gender: auth.user?.gender || 'undisclosed',
+  birth_date: auth.user?.birth_date ? new Date(`${auth.user.birth_date}T00:00:00`).getTime() : null,
+  bio: auth.user?.bio || '',
+  real_name: auth.user?.real_name || '',
+  identity_document_type: auth.user?.identity_document_type || null,
+  identity_document_number: '',
 })
 const avatarLoadFailed = ref(false)
 
@@ -30,6 +36,12 @@ watch(
     if (!user) return
     form.phone_country_code = user.phone_country_code || '+86'
     form.phone_number = user.phone_number || ''
+    form.gender = user.gender || 'undisclosed'
+    form.birth_date = user.birth_date ? new Date(`${user.birth_date}T00:00:00`).getTime() : null
+    form.bio = user.bio || ''
+    form.real_name = user.real_name || ''
+    form.identity_document_type = user.identity_document_type || null
+    form.identity_document_number = ''
   },
 )
 
@@ -52,6 +64,23 @@ const countryCodeOptions = [
   { label: '中国台湾 +886', value: '+886' },
   { label: '美国/加拿大 +1', value: '+1' },
 ]
+const genderOptions = [
+  { label: '不公开', value: 'undisclosed' },
+  { label: '男', value: 'male' },
+  { label: '女', value: 'female' },
+  { label: '其他', value: 'other' },
+]
+const documentTypeOptions = [
+  { label: '居民身份证', value: 'id_card' },
+  { label: '护照', value: 'passport' },
+  { label: '其他证件', value: 'other' },
+]
+const realnameStatus = computed(() => ({
+  unverified: { label: auth.user?.has_identity_document ? '未核验' : '未填写', type: 'default' },
+  pending: { label: '核验中', type: 'warning' },
+  verified: { label: '已核验', type: 'success' },
+  rejected: { label: '核验未通过', type: 'error' },
+}[auth.user?.realname_status] || { label: '未填写', type: 'default' }))
 
 const createdAt = computed(() => {
   if (!auth.user?.created_at) return '未知'
@@ -69,6 +98,23 @@ const rules = {
     message: '请输入 6 至 15 位数字的手机号',
     trigger: ['input', 'blur'],
   }],
+  bio: [{ max: 500, message: '个人简介不能超过 500 个字符', trigger: ['input', 'blur'] }],
+  real_name: [{ min: 2, message: '真实姓名至少需要 2 个字符', trigger: ['input', 'blur'] }],
+  identity_document_number: [{
+    validator: (_rule, value) => !value || (!/[\p{C}]/u.test(value.trim()) && value.trim().length >= 5 && value.trim().length <= 64),
+    message: '请输入 5 至 64 位有效证件号码',
+    trigger: ['input', 'blur'],
+  }],
+}
+
+function formatLocalDate(timestamp) {
+  if (!timestamp) return null
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return null
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 async function uploadAvatar({ file }) {
@@ -98,6 +144,12 @@ async function submit() {
       display_name: form.display_name.trim(),
       phone_country_code: form.phone_number.trim() ? form.phone_country_code : null,
       phone_number: form.phone_number.trim() || null,
+      gender: form.gender || null,
+      birth_date: formatLocalDate(form.birth_date),
+      bio: form.bio.trim() || null,
+      real_name: form.real_name.trim() || null,
+      identity_document_type: form.identity_document_type,
+      identity_document_number: form.identity_document_number.trim() || null,
     })
     auth.user = response.data.data.user
     message.success(response.data.data.message || '个人资料已更新')
@@ -139,6 +191,18 @@ async function submit() {
         <n-form-item label="邮箱">
           <n-input :value="auth.user.email" disabled />
         </n-form-item>
+        <div class="profile-section-label"><n-icon :component="PersonOutline" /><span>补充资料</span></div>
+        <div class="profile-fields-grid">
+          <n-form-item label="性别">
+            <n-select v-model:value="form.gender" :options="genderOptions" />
+          </n-form-item>
+          <n-form-item label="出生日期">
+            <n-date-picker v-model:value="form.birth_date" type="date" clearable :is-date-disabled="(timestamp) => timestamp > Date.now()" />
+          </n-form-item>
+        </div>
+        <n-form-item label="个人简介" path="bio">
+          <n-input v-model:value="form.bio" type="textarea" maxlength="500" show-count :autosize="{ minRows: 2, maxRows: 4 }" placeholder="简单介绍一下自己" />
+        </n-form-item>
         <div class="profile-section-label"><n-icon :component="PhonePortraitOutline" /><span>联系方式</span></div>
         <n-form-item label="手机号" path="phone_number">
           <div class="profile-phone-control">
@@ -150,6 +214,24 @@ async function submit() {
               </n-tag>
             </div>
             <small class="profile-field-hint">修改手机号后需要重新验证。短信验证功能接入前，号码将保持未验证状态。</small>
+          </div>
+        </n-form-item>
+        <div class="profile-section-label"><n-icon :component="CardOutline" /><span>实名资料</span><n-tag size="small" :type="realnameStatus.type" :bordered="false">{{ realnameStatus.label }}</n-tag></div>
+        <n-alert type="info" :show-icon="false" class="realname-note">
+          自主填写不代表已经核验。只有你明确授权的应用才能读取，完整信息还需要单独授予高敏感权限。
+        </n-alert>
+        <div class="profile-fields-grid">
+          <n-form-item label="真实姓名" path="real_name">
+            <n-input v-model:value="form.real_name" maxlength="100" placeholder="输入证件上的姓名" />
+          </n-form-item>
+          <n-form-item label="证件类型">
+            <n-select v-model:value="form.identity_document_type" :options="documentTypeOptions" clearable placeholder="选择证件类型" />
+          </n-form-item>
+        </div>
+        <n-form-item label="证件号码" path="identity_document_number">
+          <div class="identity-number-field">
+            <n-input v-model:value="form.identity_document_number" maxlength="64" :placeholder="auth.user?.identity_document_number_masked ? `当前 ${auth.user.identity_document_number_masked}，留空则不修改` : '输入证件号码'" autocomplete="off" />
+            <small class="profile-field-hint">保存后仅显示脱敏号码；修改姓名、证件类型或号码会重置核验状态。</small>
           </div>
         </n-form-item>
         <n-form-item label="账号 ID">
@@ -166,5 +248,5 @@ async function submit() {
 
 <style scoped>
 .profile-editor-header{display:flex;margin-bottom:22px;padding-bottom:20px;align-items:flex-start;gap:14px;border-bottom:1px solid var(--color-border)}.profile-avatar-preview{width:58px;height:58px;display:grid;place-items:center;overflow:hidden;flex:none;border-radius:50%;background:var(--color-primary);color:#fff;font-size:var(--font-size-xl);font-weight:600}.profile-avatar-preview img{width:100%;height:100%;display:block;object-fit:cover}.profile-avatar-copy{min-width:0}.profile-editor-header h2{margin:0;color:var(--color-text-primary);font-size:var(--font-size-md);font-weight:600}.profile-editor-header p{margin:4px 0 10px;color:var(--color-text-tertiary);font-size:var(--font-size-sm)}.profile-avatar-copy .n-upload{display:inline-block}.profile-avatar-copy small{display:block;margin-top:6px;color:var(--color-text-tertiary);font-size:var(--font-size-xs)}.profile-section-label{display:flex;margin:8px 0 14px;padding-top:18px;align-items:center;gap:7px;border-top:1px solid var(--color-border);color:var(--color-text-secondary);font-size:var(--font-size-sm);font-weight:600}.profile-section-label .n-icon{color:var(--color-primary)}
-.profile-phone-control{width:100%;min-width:0}.profile-phone-field{width:100%;display:grid;grid-template-columns:150px minmax(120px,1fr) auto;align-items:center;gap:8px}.profile-phone-field :deep(.n-input),.profile-phone-field :deep(.n-select){min-width:0}.profile-field-hint{display:block;margin-top:7px;color:var(--color-text-tertiary);font-size:var(--font-size-xs);line-height:1.6}@media (max-width:560px){.profile-phone-field{grid-template-columns:128px minmax(0,1fr)}.profile-phone-field .n-tag{grid-column:1/-1;justify-self:start}}
+.account-form-card :deep(.n-form){max-width:680px}.profile-fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.profile-section-label .n-tag{margin-left:auto}.profile-phone-control,.identity-number-field{width:100%;min-width:0}.profile-phone-field{width:100%;display:grid;grid-template-columns:150px minmax(120px,1fr) auto;align-items:center;gap:8px}.profile-phone-field :deep(.n-input),.profile-phone-field :deep(.n-select){min-width:0}.profile-field-hint{display:block;margin-top:7px;color:var(--color-text-tertiary);font-size:var(--font-size-xs);line-height:1.6}.realname-note{margin:-3px 0 14px}@media (max-width:560px){.profile-fields-grid{grid-template-columns:1fr}.profile-phone-field{grid-template-columns:128px minmax(0,1fr)}.profile-phone-field .n-tag{grid-column:1/-1;justify-self:start}}
 </style>

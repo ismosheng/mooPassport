@@ -47,7 +47,7 @@ final class LoginService
 
     public function login(LoginInput $input): LoginResult
     {
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $identifier = mb_strtolower(trim($input->identifier));
         $identifierHash = hash('sha256', $identifier, true);
         $binaryIp = $this->ipAddress->toBinary($input->ipAddress);
@@ -115,6 +115,7 @@ final class LoginService
                 'user_id' => $user->id,
                 'ip_address' => $binaryIp,
                 'user_agent' => $this->truncateUserAgent($input->userAgent),
+                'request_id' => $input->requestId,
                 'success' => true,
                 'created_at' => $now,
             ]);
@@ -148,6 +149,7 @@ final class LoginService
             'user_id' => $user?->id,
             'ip_address' => $binaryIp,
             'user_agent' => $this->truncateUserAgent($input->userAgent),
+            'request_id' => $input->requestId,
             'success' => false,
             'details' => ['reason' => $reason],
             'created_at' => $now,

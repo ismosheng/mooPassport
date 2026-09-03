@@ -20,6 +20,7 @@ final readonly class AuthorizationRequest
         public string $codeChallenge,
         public ?string $state,
         public ?string $nonce,
+        public ?string $requestUri = null,
     ) {
     }
 

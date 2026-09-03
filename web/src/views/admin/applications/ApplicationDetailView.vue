@@ -17,11 +17,14 @@ const scopeDefinitions = [
   { name: 'openid', title: '身份标识', description: '返回 OIDC ID Token，用于确认用户身份。' },
   { name: 'profile', title: '基础资料', description: '读取用户公开 ID、显示名称和头像。' },
   { name: 'email', title: '邮箱信息', description: '读取用户邮箱及邮箱验证状态。' },
+  { name: 'realname', title: '脱敏实名', description: '从 UserInfo 读取脱敏姓名、证件类型、脱敏证件号码和核验状态。' },
+  { name: 'realname_full', title: '完整实名（高敏感）', description: '从 UserInfo 读取完整姓名和证件号码；不会写入 ID Token。' },
   { name: 'offline_access', title: '离线访问', description: '允许签发 Refresh Token，在用户离开后续期。' },
 ]
 const route = useRoute(), router = useRouter(), message = useMessage(), dialog = useDialog()
 const access = useAdminAccessStore()
 const loading = ref(true), application = ref(null), clients = ref([]), secret = ref(''), showSecret = ref(false)
+const redirectUriDrafts = reactive({})
 const activeGuide = ref('guide-overview')
 const guideSections = ['guide-overview', 'guide-sdk', 'guide-callback', 'guide-token', 'guide-user', 'guide-scope', 'guide-endpoints']
 const editingBasic = ref(false), savingBasic = ref(false), uploadingLogo = ref(false)
@@ -33,7 +36,7 @@ const callbackUri = computed(() => loginClient.value?.redirect_uris?.[0] || 'htt
 const sdkCode = computed(() => `<script src="${webOrigin}/sdk/moo-auth-sdk.js?v=1.1.0"><\/script>\n<script>\nconst auth = MooAuth.init({\n  clientId: '${loginClient.value?.client_id || 'YOUR_APP_ID'}',\n  redirectUri: '${callbackUri.value}',\n  scope: 'openid profile'\n})\n\n// 弹框登录\ndocument.querySelector('#popup-login').onclick = () => auth.login({ mode: 'popup' })\n\n// 跳转登录\ndocument.querySelector('#redirect-login').onclick = () => auth.login({ mode: 'redirect' })\n<\/script>`)
 const callbackCode = `const result = MooAuth.handleCallback()\n\nif (result?.code) {\n  await fetch('/api/auth/moo/callback', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    credentials: 'include',\n    body: JSON.stringify({\n      code: result.code,\n      code_verifier: result.verifier\n    })\n  })\n}`
 const tokenCode = computed(() => `<?php\n// 必须在业务后端执行，AppSecret 不得发送到浏览器。\n$response = Http::asForm()->post('${apiOrigin}/oauth/token', [\n    'grant_type' => 'authorization_code',\n    'client_id' => '${loginClient.value?.client_id || 'YOUR_APP_ID'}',\n    'client_secret' => getenv('MOO_APP_SECRET'),\n    'code' => $request->input('code'),\n    'code_verifier' => $request->input('code_verifier'),\n    'redirect_uri' => '${callbackUri.value}',\n]);\n\n$tokens = $response->throw()->json();`)
-const userInfoCode = computed(() => `$response = Http::withToken($tokens['access_token'])\n    ->get('${apiOrigin}/oauth/userinfo');\n\n$user = $response->throw()->json();\n// 使用 $user['sub'] 关联本地账号，不要使用可变昵称作为唯一标识。`)
+const userInfoCode = computed(() => `$response = Http::withToken($tokens['access_token'])\n    ->get('${apiOrigin}/oauth/userinfo');\n\n$user = $response->throw()->json();\n// 使用 $user['sub'] 关联本地账号，不要使用可变昵称作为唯一标识。\n// realname 返回脱敏字段；realname_full 才返回完整姓名和证件号码。\n// 始终检查 $user['realname_verified']，用户自填不等于已核验。`)
 
 async function load() {
   loading.value = true
@@ -41,12 +44,15 @@ async function load() {
     const response = await getApplication(route.params.id)
     application.value = response.data.data
     clients.value = application.value.clients
+    for (const key of Object.keys(redirectUriDrafts)) delete redirectUriDrafts[key]
+    for (const client of clients.value) redirectUriDrafts[client.client_id] = client.redirect_uris.join('\n')
     Object.assign(basicForm, { name: application.value.name, description: application.value.description || '', logo_url: application.value.logo_url || '' })
   } catch (error) { message.error(error.userMessage); router.replace('/admin/applications') }
   finally { loading.value = false }
 }
 async function saveClient(client) {
-  try { await updateOAuthClient(client.client_id, { redirect_uris: client.redirect_uris, scopes: client.scopes }); message.success('客户端配置已保存'); await load() }
+  const redirectUris = (redirectUriDrafts[client.client_id] || '').split(/\r?\n/).map((value) => value.trim()).filter(Boolean)
+  try { await updateOAuthClient(client.client_id, { redirect_uris: redirectUris, scopes: client.scopes }); message.success('客户端配置已保存'); await load() }
   catch (error) { message.error(error.userMessage) }
 }
 function rotateSecret(client) {
@@ -104,7 +110,7 @@ onUnmounted(() => guideScroller()?.removeEventListener('scroll', updateActiveGui
       <n-tab-pane name="config" tab="客户端配置"><div class="client-grid">
         <n-card v-for="client in clients" :key="client.client_id" :title="client.application_type === 'service' ? '服务端 API' : '用户登录'"><template #header-extra><n-tag :type="client.status === 'active' ? 'success' : 'default'">{{ client.status === 'active' ? '已启用' : '已禁用' }}</n-tag></template>
           <n-descriptions label-placement="left" :column="1"><n-descriptions-item label="AppID"><code class="inline-code app-id">{{ client.client_id }}</code> <n-button text type="primary" @click="copy(client.client_id)">复制</n-button></n-descriptions-item><n-descriptions-item label="客户端类型">{{ client.client_type === 'confidential' ? '机密客户端' : '公开客户端' }}</n-descriptions-item><n-descriptions-item label="认证方式"><code class="inline-code">{{ client.token_endpoint_auth_method }}</code></n-descriptions-item><n-descriptions-item label="PKCE">{{ client.require_pkce ? '必须使用 S256' : '不适用' }}</n-descriptions-item></n-descriptions>
-          <template v-if="client.application_type !== 'service'"><label>登录回调地址（每行一个）</label><n-input type="textarea" :value="client.redirect_uris.join('\n')" @update:value="client.redirect_uris=$event.split(/\r?\n/).map(v=>v.trim()).filter(Boolean)" /><label>用户授权范围</label><n-checkbox-group v-model:value="client.scopes" class="scope-grid"><n-checkbox v-for="scope in scopeDefinitions" :key="scope.name" :value="scope.name"><span class="scope-copy"><strong>{{ scope.title }}</strong><small>{{ scope.name }}</small><em>{{ scope.description }}</em></span></n-checkbox></n-checkbox-group></template>
+          <template v-if="client.application_type !== 'service'"><label>登录回调地址（每行一个）</label><n-input v-model:value="redirectUriDrafts[client.client_id]" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="每行一个完整 URI" /><label>用户授权范围</label><n-checkbox-group v-model:value="client.scopes" class="scope-grid"><n-checkbox v-for="scope in scopeDefinitions" :key="scope.name" :value="scope.name"><span class="scope-copy"><strong>{{ scope.title }}</strong><small>{{ scope.name }}</small><em>{{ scope.description }}</em></span></n-checkbox></n-checkbox-group></template>
           <div v-if="access.has('admin.applications.update') || access.has('admin.applications.status.update') || access.has('admin.applications.secret.rotate')" class="card-actions"><n-button v-if="access.has('admin.applications.status.update')" @click="toggleStatus(client)">{{ client.status === 'active' ? '禁用' : '启用' }}</n-button><n-button v-if="client.client_type === 'confidential' && access.has('admin.applications.secret.rotate')" @click="rotateSecret(client)">轮换 AppSecret</n-button><n-button v-if="client.application_type !== 'service' && access.has('admin.applications.update')" type="primary" @click="saveClient(client)">保存配置</n-button></div>
         </n-card></div></n-tab-pane>
       <n-tab-pane name="guide" tab="接入文档"><div class="guide-layout">

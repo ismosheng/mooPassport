@@ -63,7 +63,7 @@ async function uploadLogo({ file }) {
         <template v-if="hasLogin()">
           <n-form-item label="登录客户端平台" required><n-radio-group v-model:value="form.login_application_type"><n-radio-button value="web">服务端 Web</n-radio-button><n-radio-button value="spa">单页应用 SPA</n-radio-button><n-radio-button value="native">原生应用</n-radio-button></n-radio-group></n-form-item>
           <n-form-item label="登录回调地址" required><div class="form-field"><n-input v-model:value="form.redirect_uris" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }" placeholder="每行一个完整 URI" /><small class="field-help">每行一个地址；正式 Web 应用必须使用 HTTPS。</small></div></n-form-item>
-          <n-form-item label="用户授权范围" required><n-checkbox-group v-model:value="form.login_scopes" class="scope-options"><n-checkbox value="openid" label="OpenID" /><n-checkbox value="profile" label="基础资料" /><n-checkbox value="email" label="邮箱" /><n-checkbox value="offline_access" label="离线访问" /></n-checkbox-group></n-form-item>
+          <n-form-item label="用户授权范围" required><div class="form-field"><n-checkbox-group v-model:value="form.login_scopes" class="scope-options"><n-checkbox value="openid" label="OpenID" /><n-checkbox value="profile" label="基础资料" /><n-checkbox value="email" label="邮箱" /><n-checkbox value="realname" label="脱敏实名" /><n-checkbox value="realname_full" label="完整实名（高敏感）" /><n-checkbox value="offline_access" label="离线访问" /></n-checkbox-group><small class="field-help">完整实名会返回姓名和证件号码原文，仅应授予确有必要且可信的应用。</small></div></n-form-item>
         </template>
         <n-alert v-if="form.capabilities.includes('service')" type="info" :show-icon="false">服务端 API 客户端固定使用 <code>service</code> Scope，不设置回调地址。</n-alert>
       </n-form>

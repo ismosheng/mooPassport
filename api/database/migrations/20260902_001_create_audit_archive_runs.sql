@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS `moo_audit_archive_runs` (
   `status` ENUM('running','completed','failed') NOT NULL COMMENT '本批归档状态',
   `row_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '本批成功归档行数',
   `error_message` VARCHAR(1000) NULL COMMENT '脱敏后的失败原因',
-  `started_at` DATETIME(6) NOT NULL COMMENT '开始时间（UTC）',
-  `finished_at` DATETIME(6) NULL COMMENT '结束时间（UTC）',
+  `started_at` DATETIME(6) NOT NULL COMMENT '开始时间（北京时间）',
+  `finished_at` DATETIME(6) NULL COMMENT '结束时间（北京时间）',
   PRIMARY KEY (`id`),
   KEY `idx_moo_audit_archive_month_started` (`archive_month`, `started_at`),
   KEY `idx_moo_audit_archive_status_started` (`status`, `started_at`)

@@ -1,8 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NIcon, NSpin, useMessage } from 'naive-ui'
-import { CheckmarkCircleOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
+import { NAlert, NButton, NIcon, NSpin, useMessage } from 'naive-ui'
+import { CheckmarkCircleOutline, ShieldCheckmarkOutline, WarningOutline } from '@vicons/ionicons5'
 import { inspectAuthorization } from '../../api/oauth.js'
 import { redirectToOAuthError } from './oauthError.js'
 
@@ -68,11 +68,12 @@ onMounted(async () => {
         <p class="eyebrow">应用授权</p><h1>{{ authorization.client.name }}</h1>
         <p class="consent-intro">希望访问你的哞哞通行证账号</p>
         <div class="scope-list">
-          <div v-for="scope in authorization.scopes" :key="scope.name" class="scope-item">
-            <n-icon :component="CheckmarkCircleOutline" size="22" />
+          <div v-for="scope in authorization.scopes" :key="scope.name" class="scope-item" :class="{ 'is-sensitive': scope.name === 'realname_full' }">
+            <n-icon :component="scope.name === 'realname_full' ? WarningOutline : CheckmarkCircleOutline" size="22" />
             <div><strong>{{ scope.display_name }}</strong><p>{{ scope.description }}</p></div>
           </div>
         </div>
+        <n-alert v-if="authorization.scopes.some((scope) => scope.name === 'realname_full')" type="warning" :show-icon="false" class="sensitive-warning">此应用将获得你的完整真实姓名和证件号码。请确认应用可信且确有使用必要。</n-alert>
         <div class="security-note"><n-icon :component="ShieldCheckmarkOutline" /> 授权不会向应用透露你的密码</div>
         <div class="consent-actions">
           <n-button size="large" :disabled="deciding" @click="decide('deny')">拒绝</n-button>
@@ -82,3 +83,7 @@ onMounted(async () => {
     </n-spin>
   </main>
 </template>
+
+<style scoped>
+.scope-item.is-sensitive{padding:10px;border:1px solid var(--color-border-strong);border-radius:var(--radius-md);background:var(--color-bg-subtle)}.scope-item.is-sensitive>.n-icon{color:var(--color-error)}.sensitive-warning{margin-top:12px}
+</style>

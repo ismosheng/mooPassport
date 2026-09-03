@@ -24,7 +24,7 @@ final class SigningKeyService
 
     public function ensureActiveKey(): OAuthSigningKey
     {
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $existing = $this->keys->findActiveForSigning($now);
         if ($existing !== null) {
             return $existing;

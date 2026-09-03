@@ -14,7 +14,7 @@ final class DashboardRepository implements DashboardRepositoryInterface
 {
     public function summary(): array
     {
-        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
         $today = $now->setTime(0, 0);
 
         return [

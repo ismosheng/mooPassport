@@ -195,7 +195,7 @@ try {
         'password_hash' => $passwordHasher->hash($limitedPassword),
         'display_name' => '登录限流测试用户',
         'status' => UserStatus::Active,
-        'email_verified_at' => new DateTimeImmutable('now', new DateTimeZone('UTC')),
+        'email_verified_at' => new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')),
     ]);
     for ($attempt = 0; $attempt < 5; ++$attempt) {
         $expectBusinessError(
@@ -229,7 +229,7 @@ try {
         'password_hash' => $passwordHasher->hash($resetPassword),
         'display_name' => '密码重置测试用户',
         'status' => UserStatus::Active,
-        'email_verified_at' => new DateTimeImmutable('now', new DateTimeZone('UTC')),
+        'email_verified_at' => new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')),
     ]);
     $resetLogin = $login->login(new LoginInput(
         $resetUser->username,

@@ -26,6 +26,7 @@ use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
 use app\common\repository\contract\OAuthClientRedirectUriRepositoryInterface;
 use app\common\repository\contract\OAuthClientSecretRepositoryInterface;
 use app\common\repository\contract\OAuthConsentRepositoryInterface;
+use app\common\repository\contract\OAuthPushedAuthorizationRequestRepositoryInterface;
 use app\common\repository\contract\OAuthScopeRepositoryInterface;
 use app\common\repository\contract\OAuthSigningKeyRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
@@ -47,6 +48,7 @@ use app\common\repository\eloquent\OAuthClientManagementRepository;
 use app\common\repository\eloquent\OAuthClientRedirectUriRepository;
 use app\common\repository\eloquent\OAuthClientSecretRepository;
 use app\common\repository\eloquent\OAuthConsentRepository;
+use app\common\repository\eloquent\OAuthPushedAuthorizationRequestRepository;
 use app\common\repository\eloquent\OAuthScopeRepository;
 use app\common\repository\eloquent\OAuthSigningKeyRepository;
 use app\common\repository\eloquent\RefreshTokenRepository;
@@ -106,6 +108,7 @@ use app\passport\service\SessionManagementService;
 use app\oauth\service\OAuthClientValidationService;
 use app\oauth\service\AuthorizationService;
 use app\oauth\controller\AuthorizationController;
+use app\oauth\controller\PushedAuthorizationController;
 use app\oauth\service\TokenService;
 use app\oauth\controller\TokenController;
 use app\oauth\service\AccessTokenAuthenticationService;
@@ -120,6 +123,8 @@ use app\oauth\service\OidcMetadataService;
 use app\oauth\service\JwksService;
 use app\oauth\controller\OidcMetadataController;
 use app\common\infrastructure\crypto\PrivateKeyCipher;
+use app\common\infrastructure\crypto\SensitiveDataCipher;
+use app\common\service\UserSensitiveDataService;
 use app\oauth\service\SigningKeyService;
 use app\oauth\service\IdTokenService;
 use app\common\service\OAuthClientManagementService;
@@ -207,6 +212,12 @@ return [
     PrivateKeyCipher::class => static fn (): PrivateKeyCipher => new PrivateKeyCipher(
         (string) config('oauth.private_key_encryption_key'),
     ),
+    SensitiveDataCipher::class => static fn (): SensitiveDataCipher => new SensitiveDataCipher(
+        (string) config('oauth.user_data_encryption_key'),
+    ),
+    UserSensitiveDataService::class => static fn (ContainerInterface $container): UserSensitiveDataService => new UserSensitiveDataService(
+        $container->get(SensitiveDataCipher::class),
+    ),
     SigningKeyService::class => static fn (ContainerInterface $container): SigningKeyService => new SigningKeyService(
         $container->get(OAuthSigningKeyRepositoryInterface::class),
         $container->get(PrivateKeyCipher::class),
@@ -226,6 +237,7 @@ return [
         $container->get(TransactionManagerInterface::class),
     ),
     OAuthConsentRepositoryInterface::class => static fn (): OAuthConsentRepositoryInterface => new OAuthConsentRepository(),
+    OAuthPushedAuthorizationRequestRepositoryInterface::class => static fn (): OAuthPushedAuthorizationRequestRepositoryInterface => new OAuthPushedAuthorizationRequestRepository(),
     AuthorizationCodeRepositoryInterface::class => static fn (): AuthorizationCodeRepositoryInterface => new AuthorizationCodeRepository(),
     EmailVerificationTokenRepositoryInterface::class => static fn (): EmailVerificationTokenRepositoryInterface => new EmailVerificationTokenRepository(),
     AccessTokenRepositoryInterface::class => static fn (): AccessTokenRepositoryInterface => new AccessTokenRepository(),
@@ -294,6 +306,7 @@ return [
         $container->get(UserRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new IpAddress(),
+        $container->get(UserSensitiveDataService::class),
     ),
     ProfileAvatarService::class => static fn (ContainerInterface $container): ProfileAvatarService => new ProfileAvatarService(
         $container->get(UserRepositoryInterface::class),
@@ -316,9 +329,11 @@ return [
         $container->get(OAuthClientValidationService::class),
         $container->get(OAuthScopeRepositoryInterface::class),
         $container->get(OAuthConsentRepositoryInterface::class),
+        $container->get(OAuthPushedAuthorizationRequestRepositoryInterface::class),
         $container->get(AuthorizationCodeRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
+        new IpAddress(),
         $container->get(TransactionManagerInterface::class),
     ),
     TokenService::class => static fn (ContainerInterface $container): TokenService => new TokenService(
@@ -329,6 +344,7 @@ return [
         $container->get(UserRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
+        new IpAddress(),
         $container->get(IdTokenService::class),
         $container->get(TransactionManagerInterface::class),
     ),
@@ -339,6 +355,7 @@ return [
         $container->get(RefreshTokenRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
+        new IpAddress(),
         $container->get(TransactionManagerInterface::class),
     ),
     TokenIntrospectionService::class => static fn (ContainerInterface $container): TokenIntrospectionService => new TokenIntrospectionService(
@@ -399,6 +416,7 @@ return [
         $container->get(ProfileService::class),
         $container->get(ProfileAvatarService::class),
         $container->get(RoleService::class),
+        $container->get(UserSensitiveDataService::class),
     ),
     ConsentController::class => static fn (ContainerInterface $container): ConsentController => new ConsentController(
         $container->get(ConsentManagementService::class),
@@ -409,11 +427,17 @@ return [
     AuthorizationController::class => static fn (ContainerInterface $container): AuthorizationController => new AuthorizationController(
         $container->get(AuthorizationService::class),
     ),
+    PushedAuthorizationController::class => static fn (ContainerInterface $container): PushedAuthorizationController => new PushedAuthorizationController(
+        $container->get(AuthorizationService::class),
+        $container->get(ClientCredentialsParser::class),
+    ),
     TokenController::class => static fn (ContainerInterface $container): TokenController => new TokenController(
         $container->get(TokenService::class),
         $container->get(ClientCredentialsParser::class),
     ),
-    UserInfoController::class => static fn (): UserInfoController => new UserInfoController(),
+    UserInfoController::class => static fn (ContainerInterface $container): UserInfoController => new UserInfoController(
+        $container->get(UserSensitiveDataService::class),
+    ),
     TokenRevocationController::class => static fn (ContainerInterface $container): TokenRevocationController => new TokenRevocationController(
         $container->get(TokenRevocationService::class),
         $container->get(ClientCredentialsParser::class),

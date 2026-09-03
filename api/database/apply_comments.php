@@ -99,6 +99,14 @@ $tables = [
         'auth_time' => '用户完成认证的时间', 'expires_at' => '授权码过期时间',
         'used_at' => '授权码兑换时间', 'created_at' => '创建时间',
     ]],
+    'moo_oauth_pushed_authorization_requests' => ['OAuth推送授权请求表', [
+        'request_uri_hash' => '一次性request_uri的SHA-256哈希',
+        'client_id' => '关联OAuth客户端内部ID',
+        'parameters' => '已校验的授权参数JSON，不含客户端凭据',
+        'expires_at' => 'request_uri过期时间',
+        'used_at' => 'request_uri消费时间',
+        'created_at' => '创建时间',
+    ]],
     'moo_oauth_access_tokens' => ['OAuth访问令牌表', [
         'id' => '内部自增主键', 'token_hash' => '不透明访问令牌的SHA-256哈希',
         'client_id' => '关联客户端内部ID', 'user_id' => '令牌代表的用户ID，机器令牌为空',

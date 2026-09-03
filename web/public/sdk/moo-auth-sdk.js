@@ -1,7 +1,7 @@
 (function (global) {
   'use strict'
 
-  const VERSION = '1.1.0'
+  const VERSION = '1.2.0'
   const SDK_ORIGIN = new URL(document.currentScript.src).origin
   let configuration = null
 
@@ -48,6 +48,22 @@
       code_challenge_method: 'S256',
       display: mode === 'popup' ? 'popup' : 'page',
     })
+    if (config.pushedAuthorizationEndpoint) {
+      const response = await fetch(config.pushedAuthorizationEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(Object.fromEntries(query)),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok || typeof body.request_uri !== 'string' || !body.request_uri) {
+        throw new Error(body.error_description || body.message || `无法创建授权请求 (${response.status})`)
+      }
+      return config.authorizeUrl + '?' + new URLSearchParams({
+        request_uri: body.request_uri,
+        display: mode === 'popup' ? 'popup' : 'page',
+      }).toString()
+    }
     return config.authorizeUrl + '?' + query.toString()
   }
 
@@ -94,7 +110,11 @@
       configuration = {
         clientId: String(options.clientId),
         redirectUri: String(options.redirectUri),
-        authorizeUrl: String(options.authorizeUrl || 'http://localhost:3000/connect/authorize'),
+        // 默认使用 SDK 所在的 origin，避免 localhost 与 127.0.0.1 的登录 Cookie 不共享。
+        authorizeUrl: String(options.authorizeUrl || SDK_ORIGIN + '/connect/authorize'),
+        pushedAuthorizationEndpoint: options.pushedAuthorizationEndpoint
+          ? String(options.pushedAuthorizationEndpoint)
+          : '',
         scope: String(options.scope || 'openid profile'),
       }
       return api

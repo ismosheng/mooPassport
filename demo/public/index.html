@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Moo Passport OAuth Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="返回 Demo 首页">
+        <span class="brand-mark"><img id="brand-logo" alt="" /></span>
+        <span><strong>示例工作台</strong><small>Moo Passport OAuth Demo</small></span>
+      </a>
+      <div id="connection-state" class="connection-state"><span></span><div id="connection-label">正在连接</div></div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Demo 导航">
+        <p>接入演示</p>
+        <a class="active" href="#login">授权登录</a>
+        <a href="#result">用户资料</a>
+        <div class="sidebar-meta">
+          <span>OAuth 2.1</span>
+          <span>Authorization Code</span>
+          <span>PKCE S256</span>
+        </div>
+      </aside>
+
+      <section class="content">
+        <header class="page-heading">
+          <div><p>第三方应用示例</p><h1>连接哞哞通行证</h1></div>
+          <button id="logout-button" class="button secondary hidden" type="button">退出 Demo</button>
+        </header>
+
+        <div id="notice" class="notice hidden" role="status"></div>
+
+        <section id="login" class="login-panel">
+          <div class="login-copy">
+            <span class="eyebrow">统一身份认证</span>
+            <h2>选择授权体验</h2>
+            <p>两种方式使用同一套 Authorization Code + PKCE 流程。授权码由浏览器接收，Token 只在 Demo 服务端交换和保存。</p>
+            <dl class="flow-list">
+              <div><dt>1</dt><dd><strong>发起授权</strong><span>生成 state、verifier 和 S256 challenge</span></dd></div>
+              <div><dt>2</dt><dd><strong>用户确认</strong><span>在通行证页面登录并选择授权权限</span></dd></div>
+              <div><dt>3</dt><dd><strong>服务端换取 Token</strong><span>使用授权码读取标准 UserInfo</span></dd></div>
+            </dl>
+          </div>
+          <div class="mode-list">
+            <article class="mode-item">
+              <div class="mode-icon popup-icon"><span></span></div>
+              <div><h3>弹窗授权</h3><p>授权过程停留在当前页面，以内嵌安全窗口完成。</p></div>
+              <button id="popup-login" class="button primary" type="button">弹窗登录</button>
+            </article>
+            <article class="mode-item">
+              <div class="mode-icon redirect-icon"><span></span></div>
+              <div><h3>页面跳转</h3><p>跳转到通行证授权页，完成后返回当前 Demo。</p></div>
+              <button id="redirect-login" class="button secondary" type="button">跳转登录</button>
+            </article>
+            <div class="scope-line"><span>申请权限</span><code id="scope-value">openid profile</code></div>
+          </div>
+        </section>
+
+        <section id="result" class="result-panel hidden">
+          <header><div><span class="status-mark">OK</span><div><h2>授权成功</h2><p>以下数据来自 <code>/oauth/userinfo</code></p></div></div><button id="login-again" class="button secondary" type="button">重新授权</button></header>
+          <div class="profile-summary">
+            <div id="user-avatar" class="avatar"></div>
+            <div><strong id="user-name">-</strong><span id="user-identifier">-</span></div>
+            <span id="verified-badge" class="verified-badge"></span>
+          </div>
+          <div class="claim-layout">
+            <div><h3>常用 Claims</h3><dl id="claim-list" class="claim-list"></dl></div>
+            <div><h3>原始 UserInfo</h3><pre id="raw-userinfo">{}</pre></div>
+          </div>
+        </section>
+
+        <footer class="security-note"><strong>Demo 安全边界</strong><span>AppSecret、Access Token 与 Refresh Token 不会发送到浏览器。内存会话会在 Demo 服务重启后清空。</span></footer>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

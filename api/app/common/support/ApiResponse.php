@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace app\common\support;
 
-use Symfony\Component\Uid\Ulid;
 use Webman\Http\Request;
 use Webman\Http\Response;
 
@@ -17,7 +16,7 @@ final class ApiResponse
             'code' => 0,
             'message' => 'success',
             'data' => $data,
-            'request_id' => self::requestId($request),
+            'request_id' => RequestId::get($request),
         ])->withStatus($status);
     }
 
@@ -32,17 +31,7 @@ final class ApiResponse
             'code' => $code,
             'message' => $message,
             'data' => $data,
-            'request_id' => self::requestId($request),
+            'request_id' => RequestId::get($request),
         ])->withStatus($status);
-    }
-
-    private static function requestId(Request $request): string
-    {
-        $requestId = $request->header('X-Request-ID');
-        if (is_string($requestId) && preg_match('/^[A-Za-z0-9._-]{8,100}$/', $requestId) === 1) {
-            return $requestId;
-        }
-
-        return (string) new Ulid();
     }
 }

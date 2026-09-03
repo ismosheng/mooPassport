@@ -23,7 +23,7 @@ return [
     'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOL),
     'url' => getenv('APP_URL') ?: 'http://127.0.0.1:8787',
     'error_reporting' => E_ALL,
-    'default_timezone' => getenv('APP_TIMEZONE') ?: 'UTC',
+    'default_timezone' => getenv('APP_TIMEZONE') ?: 'Asia/Shanghai',
     'request_class' => Request::class,
     'public_path' => base_path() . DIRECTORY_SEPARATOR . 'public',
     'runtime_path' => base_path(false) . DIRECTORY_SEPARATOR . 'runtime',
