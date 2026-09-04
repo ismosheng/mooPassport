@@ -54,7 +54,7 @@ jobs:
       MAIL_HOST: localhost
       MAIL_PORT: 1025
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
@@ -86,12 +86,13 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm audit --omit=dev
+      # 基于可复现的锁文件审计，避免平台相关可选依赖污染已安装依赖树。
+      - run: npm audit --omit=dev --package-lock-only
