@@ -23,4 +23,14 @@ interface AuthorizationCodeRepositoryInterface
      * 必须保证原子性，以阻止并发重放授权码。
      */
     public function consume(string $codeHash, DateTimeImmutable $usedAt): bool;
+
+    /** 作废客户端尚未使用的授权码，防止配置变更后继续按旧配置交换令牌。 */
+    public function revokeUnusedForClient(int $clientId, DateTimeImmutable $revokedAt): int;
+
+    /** 作废指定用户已获授权但尚未交换的授权码。 */
+    public function revokeUnusedForClientAndUser(
+        int $clientId,
+        int $userId,
+        DateTimeImmutable $revokedAt,
+    ): int;
 }

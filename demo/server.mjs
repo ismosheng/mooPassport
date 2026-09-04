@@ -19,7 +19,6 @@ const scope = env.MOO_SCOPE || 'openid profile'
 const configuredScopes = parseScope(scope)
 const callbackUrl = `${baseUrl}/callback`
 const sessions = new Map()
-const sessionTtl = 60 * 60 * 1000
 
 validateClientConfiguration()
 
@@ -75,9 +74,10 @@ const server = createServer(async (request, response) => {
       const user = await passportRequest('/oauth/userinfo', {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       })
+      const tokenTtlSeconds = positiveInteger(tokens.expires_in, 60)
       const sessionId = randomBytes(32).toString('base64url')
-      sessions.set(sessionId, { tokens, user, expiresAt: Date.now() + sessionTtl })
-      response.setHeader('Set-Cookie', sessionCookie(sessionId, request))
+      sessions.set(sessionId, { tokens, user, expiresAt: Date.now() + tokenTtlSeconds * 1000 })
+      response.setHeader('Set-Cookie', sessionCookie(sessionId, request, tokenTtlSeconds))
       return json(response, 200, { authenticated: true, user, scope: tokens.scope })
     }
     if (url.pathname === '/api/oauth/push' && request.method === 'POST') {
@@ -113,15 +113,11 @@ const server = createServer(async (request, response) => {
       const sessionId = cookieValue(request, 'moo_demo_session')
       const session = sessionId ? sessions.get(sessionId) : null
       if (sessionId) sessions.delete(sessionId)
+      if (session?.tokens?.refresh_token && clientId) {
+        await revokeToken(session.tokens.refresh_token, 'refresh_token')
+      }
       if (session?.tokens?.access_token && clientId) {
-        const parameters = {
-          token: session.tokens.access_token,
-          token_type_hint: 'access_token',
-        }
-        await passportRequest('/oauth/revoke', {
-          method: 'POST',
-          ...authenticatedForm(parameters),
-        }).catch(() => null)
+        await revokeToken(session.tokens.access_token, 'access_token')
       }
       response.setHeader('Set-Cookie', expiredSessionCookie(request))
       return json(response, 200, { authenticated: false })
@@ -240,8 +236,15 @@ function cookieValue(request, name) {
   return cookies[name] || null
 }
 
-function sessionCookie(value, request) {
-  return `moo_demo_session=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${isHttps(request) ? '; Secure' : ''}`
+function sessionCookie(value, request, maxAge) {
+  return `moo_demo_session=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isHttps(request) ? '; Secure' : ''}`
+}
+
+async function revokeToken(token, tokenTypeHint) {
+  await passportRequest('/oauth/revoke', {
+    method: 'POST',
+    ...authenticatedForm({ token, token_type_hint: tokenTypeHint }),
+  }).catch(() => null)
 }
 
 function expiredSessionCookie(request) {

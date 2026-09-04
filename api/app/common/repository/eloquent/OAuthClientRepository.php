@@ -36,8 +36,14 @@ final class OAuthClientRepository implements OAuthClientRepositoryInterface
     public function findActiveByClientId(string $clientId): ?OAuthClient
     {
         $client = OAuthClient::query()
-            ->where('client_id', $clientId)
-            ->where('status', 'active')
+            ->leftJoin('moo_applications as applications', 'applications.id', '=', 'moo_oauth_clients.application_id')
+            ->where('moo_oauth_clients.client_id', $clientId)
+            ->where('moo_oauth_clients.status', 'active')
+            ->where(function ($query): void {
+                $query->whereNull('moo_oauth_clients.application_id')
+                    ->orWhere('applications.status', 'active');
+            })
+            ->select('moo_oauth_clients.*')
             ->first();
 
         return $client instanceof OAuthClient ? $client : null;

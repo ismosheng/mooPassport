@@ -26,6 +26,7 @@ final class RequirePermission implements MiddlewareInterface
         'admin.v1.applications.detail' => 'admin.applications.read',
         'admin.v1.applications.create' => 'admin.applications.create',
         'admin.v1.applications.update' => 'admin.applications.update',
+        'admin.v1.applications.status' => 'admin.applications.status.update',
         'admin.v1.applications.delete' => 'admin.applications.delete',
         'admin.v1.application_assets.logo' => 'admin.applications.update',
         'admin.v1.oauth_clients.list' => 'admin.applications.read',

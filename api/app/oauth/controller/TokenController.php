@@ -46,10 +46,10 @@ final class TokenController
             /** @var array<string, mixed> $parameters */
             $parameters = (array) $request->post();
             $grantType = $parameters['grant_type'] ?? null;
-            if ($grantType !== 'authorization_code' && $grantType !== 'refresh_token') {
+            if (!in_array($grantType, ['authorization_code', 'refresh_token', 'client_credentials'], true)) {
                 throw new OAuthProtocolException(
                     'unsupported_grant_type',
-                    '仅支持 authorization_code 或 refresh_token。',
+                    '仅支持 authorization_code、refresh_token 或 client_credentials。',
                 );
             }
 
@@ -75,6 +75,18 @@ final class TokenController
                     $credentials->clientSecret,
                     $credentials->method,
                     $this->requiredString($parameters, 'refresh_token'),
+                    $scope,
+                    $auditContext,
+                );
+            } else {
+                $scope = $parameters['scope'] ?? null;
+                if ($scope !== null && !is_string($scope)) {
+                    throw new OAuthProtocolException('invalid_scope', 'scope 参数格式无效。');
+                }
+                $result = $this->tokens->issueClientCredentials(
+                    $credentials->clientId,
+                    $credentials->clientSecret,
+                    $credentials->method,
                     $scope,
                     $auditContext,
                 );

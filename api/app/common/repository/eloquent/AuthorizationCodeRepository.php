@@ -34,4 +34,24 @@ final class AuthorizationCodeRepository implements AuthorizationCodeRepositoryIn
             ->where('expires_at', '>', $usedAt)
             ->update(['used_at' => $usedAt]) === 1;
     }
+
+    public function revokeUnusedForClient(int $clientId, DateTimeImmutable $revokedAt): int
+    {
+        return OAuthAuthorizationCode::query()
+            ->where('client_id', $clientId)
+            ->whereNull('used_at')
+            ->update(['used_at' => $revokedAt]);
+    }
+
+    public function revokeUnusedForClientAndUser(
+        int $clientId,
+        int $userId,
+        DateTimeImmutable $revokedAt,
+    ): int {
+        return OAuthAuthorizationCode::query()
+            ->where('client_id', $clientId)
+            ->where('user_id', $userId)
+            ->whereNull('used_at')
+            ->update(['used_at' => $revokedAt]);
+    }
 }

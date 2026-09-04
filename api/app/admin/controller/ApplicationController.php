@@ -124,6 +124,22 @@ final class ApplicationController
         ));
     }
 
+    #[Put('/{applicationId}/status', 'admin.v1.applications.status')]
+    public function status(Request $request, string $applicationId): Response
+    {
+        $result = $this->management->updateStatus(
+            $applicationId,
+            (string) $request->post('status'),
+            $this->identity($request)->user->id,
+        );
+
+        return ApiResponse::success($request, $this->serializeApplication(
+            $result['application'],
+            $result['clients'],
+            $this->configurations($result['clients']),
+        ));
+    }
+
     #[Delete('/{applicationId}', 'admin.v1.applications.delete')]
     public function delete(Request $request, string $applicationId): Response
     {

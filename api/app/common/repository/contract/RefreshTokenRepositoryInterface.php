@@ -28,5 +28,7 @@ interface RefreshTokenRepositoryInterface
 
     public function revokeForClient(int $clientId, DateTimeImmutable $revokedAt): int;
 
+    public function revokeForClientAndUser(int $clientId, int $userId, DateTimeImmutable $revokedAt): int;
+
     public function revokeForUser(int $userId, DateTimeImmutable $revokedAt): int;
 }

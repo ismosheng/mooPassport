@@ -17,6 +17,7 @@ final class SystemSettingsService
     private const DEFINITIONS = [
         'site.name' => ['type' => 'string', 'default' => 'Moo Passport', 'label' => '站点名称', 'description' => '后台和事务邮件显示的站点名称', 'max_length' => 100],
         'site.public_url' => ['type' => 'string', 'default' => 'http://127.0.0.1:3000', 'label' => '公开访问地址', 'description' => '用户访问前端的完整地址，用于生成邮件操作链接', 'max_length' => 500, 'format' => 'url'],
+        'site.homepage_enabled' => ['type' => 'boolean', 'default' => true, 'label' => '展示系统首页', 'description' => '访问站点根地址时是否展示视频系统首页'],
         'auth.registration_enabled' => ['type' => 'boolean', 'default' => true, 'label' => '开放注册', 'description' => '是否允许新用户注册'],
         'auth.session_lifetime' => ['type' => 'integer', 'default' => 604800, 'label' => '登录会话时长', 'description' => '浏览器登录会话有效秒数', 'min' => 300, 'max' => 2592000],
         'oauth.access_token_ttl' => ['type' => 'integer', 'default' => 900, 'label' => 'Access Token 时长', 'description' => 'Access Token 有效秒数', 'min' => 60, 'max' => 86400],

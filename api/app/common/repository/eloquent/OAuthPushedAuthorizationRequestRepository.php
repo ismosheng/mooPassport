@@ -39,4 +39,12 @@ final class OAuthPushedAuthorizationRequestRepository implements OAuthPushedAuth
             ->where('expires_at', '>', $usedAt)
             ->update(['used_at' => $usedAt]) === 1;
     }
+
+    public function revokeUnusedForClient(int $clientId, DateTimeImmutable $revokedAt): int
+    {
+        return OAuthPushedAuthorizationRequest::query()
+            ->where('client_id', $clientId)
+            ->whereNull('used_at')
+            ->update(['used_at' => $revokedAt]);
+    }
 }

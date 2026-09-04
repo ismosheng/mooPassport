@@ -97,6 +97,7 @@ use app\passport\controller\EmailVerificationController;
 use app\passport\controller\AccountController;
 use app\passport\controller\ConsentController;
 use app\passport\controller\SessionController;
+use app\passport\controller\PublicSiteController;
 use app\passport\middleware\AuthenticateSession;
 use app\passport\middleware\ResolveSession;
 use app\passport\service\ConsentManagementService;
@@ -105,6 +106,7 @@ use app\passport\service\ProfileService;
 use app\passport\service\ProfileAvatarService;
 use app\passport\service\SessionAuthenticationService;
 use app\passport\service\SessionManagementService;
+use app\passport\service\PublicSiteService;
 use app\oauth\service\OAuthClientValidationService;
 use app\oauth\service\AuthorizationService;
 use app\oauth\controller\AuthorizationController;
@@ -164,6 +166,11 @@ return [
         $container->get(OAuthClientManagementRepositoryInterface::class),
         $container->get(OAuthClientManagementService::class),
         $container->get(OAuthClientRepositoryInterface::class),
+        $container->get(AccessTokenRepositoryInterface::class),
+        $container->get(RefreshTokenRepositoryInterface::class),
+        $container->get(AuthorizationCodeRepositoryInterface::class),
+        $container->get(OAuthPushedAuthorizationRequestRepositoryInterface::class),
+        $container->get(AuditLogRepositoryInterface::class),
         $container->get(TransactionManagerInterface::class),
     ),
     SystemSettingsRepositoryInterface::class => static fn (): SystemSettingsRepositoryInterface => new SystemSettingsRepository(),
@@ -174,6 +181,12 @@ return [
         $container->get(TransactionManagerInterface::class),
     ),
     SystemSettingsController::class => static fn (ContainerInterface $container): SystemSettingsController => new SystemSettingsController($container->get(SystemSettingsService::class)),
+    PublicSiteService::class => static fn (ContainerInterface $container): PublicSiteService => new PublicSiteService(
+        $container->get(SystemSettingReaderInterface::class),
+    ),
+    PublicSiteController::class => static fn (ContainerInterface $container): PublicSiteController => new PublicSiteController(
+        $container->get(PublicSiteService::class),
+    ),
     ApplicationController::class => static fn (ContainerInterface $container): ApplicationController => new ApplicationController(
         $container->get(ApplicationManagementService::class),
     ),
@@ -232,6 +245,8 @@ return [
         $container->get(AuditLogRepositoryInterface::class),
         $container->get(AccessTokenRepositoryInterface::class),
         $container->get(RefreshTokenRepositoryInterface::class),
+        $container->get(AuthorizationCodeRepositoryInterface::class),
+        $container->get(OAuthPushedAuthorizationRequestRepositoryInterface::class),
         new SecureToken(),
         new PasswordHasher(),
         $container->get(TransactionManagerInterface::class),
@@ -317,8 +332,12 @@ return [
     ConsentManagementService::class => static fn (ContainerInterface $container): ConsentManagementService => new ConsentManagementService(
         $container->get(OAuthConsentRepositoryInterface::class),
         $container->get(OAuthClientRepositoryInterface::class),
+        $container->get(AccessTokenRepositoryInterface::class),
+        $container->get(RefreshTokenRepositoryInterface::class),
+        $container->get(AuthorizationCodeRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new IpAddress(),
+        $container->get(TransactionManagerInterface::class),
     ),
     OAuthClientValidationService::class => static fn (ContainerInterface $container): OAuthClientValidationService => new OAuthClientValidationService(
         $container->get(OAuthClientRepositoryInterface::class),
@@ -341,6 +360,7 @@ return [
         $container->get(AuthorizationCodeRepositoryInterface::class),
         $container->get(AccessTokenRepositoryInterface::class),
         $container->get(RefreshTokenRepositoryInterface::class),
+        $container->get(OAuthClientManagementRepositoryInterface::class),
         $container->get(UserRepositoryInterface::class),
         $container->get(AuditLogRepositoryInterface::class),
         new SecureToken(),
@@ -457,4 +477,3 @@ return [
         $container->get(PasswordService::class),
     ),
 ];
-

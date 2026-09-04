@@ -13,9 +13,11 @@ use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\OAuthClient;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
+use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
 use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
 use app\common\repository\contract\OAuthClientRepositoryInterface;
 use app\common\repository\contract\OAuthScopeRepositoryInterface;
+use app\common\repository\contract\OAuthPushedAuthorizationRequestRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\support\PasswordHasher;
 use app\common\support\SecureToken;
@@ -40,6 +42,8 @@ final class OAuthClientManagementService
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly AccessTokenRepositoryInterface $accessTokens,
         private readonly RefreshTokenRepositoryInterface $refreshTokens,
+        private readonly AuthorizationCodeRepositoryInterface $authorizationCodes,
+        private readonly OAuthPushedAuthorizationRequestRepositoryInterface $pushedAuthorizationRequests,
         private readonly SecureToken $secureToken,
         private readonly PasswordHasher $passwordHasher,
         private readonly TransactionManagerInterface $transactions,
@@ -191,6 +195,13 @@ final class OAuthClientManagementService
         $resolvedScopes = null;
         if ($input->scopes !== null) {
             $uniqueScopes = array_values(array_unique($input->scopes));
+            $serviceClient = $applicationType === OAuthApplicationType::Service;
+            if ($serviceClient && $uniqueScopes !== ['service']) {
+                throw new BusinessException('invalid_service_scope', '服务端 API 接入只能使用机器调用 Scope。', 422);
+            }
+            if (!$serviceClient && in_array('service', $uniqueScopes, true)) {
+                throw new BusinessException('invalid_scope', '用户登录应用不能申请机器调用 Scope。', 422);
+            }
             $resolvedScopes = $this->scopes->findActiveByNames($uniqueScopes);
             if (count($resolvedScopes) !== count($uniqueScopes)) {
                 throw new BusinessException('invalid_scope', '包含不存在或已禁用的 Scope。', 422);
@@ -225,6 +236,10 @@ final class OAuthClientManagementService
                 // Scope 变更后撤销存量令牌，避免旧令牌继续保留已移除权限。
                 $this->accessTokens->revokeForClient($client->id, $now);
                 $this->refreshTokens->revokeForClient($client->id, $now);
+            }
+            if ($redirectUris !== null || $resolvedScopes !== null) {
+                $this->authorizationCodes->revokeUnusedForClient($client->id, $now);
+                $this->pushedAuthorizationRequests->revokeUnusedForClient($client->id, $now);
             }
 
             $this->auditLogs->record([
@@ -288,6 +303,8 @@ final class OAuthClientManagementService
                 // 禁用必须同时撤销令牌，防止重新启用后旧令牌恢复有效。
                 $this->accessTokens->revokeForClient($client->id, $now);
                 $this->refreshTokens->revokeForClient($client->id, $now);
+                $this->authorizationCodes->revokeUnusedForClient($client->id, $now);
+                $this->pushedAuthorizationRequests->revokeUnusedForClient($client->id, $now);
             }
             $this->auditLogs->record([
                 'event_type' => 'oauth.client.status_changed',
@@ -331,7 +348,7 @@ final class OAuthClientManagementService
         $validated = [];
         foreach (array_values(array_unique($redirectUris)) as $uri) {
             $parts = parse_url($uri);
-            if (!is_array($parts) || isset($parts['fragment'], $parts['user']) || isset($parts['pass'])) {
+            if (!is_array($parts) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
                 throw new BusinessException('invalid_redirect_uri', '回调地址格式无效或包含禁止内容。', 422);
             }
             $scheme = strtolower((string) ($parts['scheme'] ?? ''));
@@ -349,6 +366,18 @@ final class OAuthClientManagementService
             }
             if ($applicationType === OAuthApplicationType::Native && $scheme === 'http' && !$loopback) {
                 throw new BusinessException('invalid_redirect_uri', '原生应用的 HTTP 回调只能使用环回地址。', 422);
+            }
+            if ($applicationType === OAuthApplicationType::Native) {
+                $forbiddenSchemes = ['about', 'blob', 'data', 'file', 'javascript', 'vbscript'];
+                if (in_array($scheme, $forbiddenSchemes, true)) {
+                    throw new BusinessException('invalid_redirect_uri', '原生应用回调使用了禁止的 URI Scheme。', 422);
+                }
+                if (!in_array($scheme, ['http', 'https'], true)) {
+                    $validCustomScheme = preg_match('/^[a-z][a-z0-9]*(?:[.+-][a-z0-9]+)+$/D', $scheme) === 1;
+                    if (!$validCustomScheme) {
+                        throw new BusinessException('invalid_redirect_uri', '原生应用自定义 URI Scheme 格式无效。', 422);
+                    }
+                }
             }
 
             $validated[] = $uri;

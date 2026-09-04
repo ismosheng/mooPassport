@@ -9,12 +9,19 @@ use app\common\enum\OAuthApplicationType;
 use app\common\exception\BusinessException;
 use app\common\infrastructure\database\TransactionManagerInterface;
 use app\common\model\Application;
+use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\ApplicationRepositoryInterface;
+use app\common\repository\contract\AuditLogRepositoryInterface;
+use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
 use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
 use app\common\repository\contract\OAuthClientRepositoryInterface;
+use app\common\repository\contract\OAuthPushedAuthorizationRequestRepositoryInterface;
+use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\dto\CreateOAuthClientInput;
 use app\common\dto\CreatedOAuthClient;
 use app\common\service\OAuthClientManagementService;
+use DateTimeImmutable;
+use DateTimeZone;
 use Symfony\Component\Uid\Ulid;
 
 /** 管理逻辑应用，并以独立 OAuth 客户端隔离用户登录与机器调用凭据。 */
@@ -25,6 +32,11 @@ final class ApplicationManagementService
         private readonly OAuthClientManagementRepositoryInterface $clients,
         private readonly OAuthClientManagementService $clientManagement,
         private readonly OAuthClientRepositoryInterface $clientRepository,
+        private readonly AccessTokenRepositoryInterface $accessTokens,
+        private readonly RefreshTokenRepositoryInterface $refreshTokens,
+        private readonly AuthorizationCodeRepositoryInterface $authorizationCodes,
+        private readonly OAuthPushedAuthorizationRequestRepositoryInterface $pushedAuthorizationRequests,
+        private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly TransactionManagerInterface $transactions,
     ) {
     }
@@ -157,6 +169,43 @@ final class ApplicationManagementService
                 $this->clientRepository->save($client);
             }
         });
+        return $this->detail($publicId);
+    }
+
+    /** @return array{application: Application, clients: list<\app\common\model\OAuthClient>} */
+    public function updateStatus(string $publicId, string $status, int $actorUserId): array
+    {
+        if (!in_array($status, ['active', 'disabled'], true)) {
+            throw new BusinessException('invalid_application_status', '应用状态无效。', 422);
+        }
+
+        $result = $this->detail($publicId);
+        $application = $result['application'];
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai'));
+        $this->transactions->run(function () use ($application, $result, $status, $actorUserId, $now): void {
+            $application->status = $status;
+            $this->applications->save($application);
+            if ($status === 'disabled') {
+                foreach ($result['clients'] as $client) {
+                    // 应用状态是父级总开关；保留客户端自身状态，避免重新启用应用时复活此前单独禁用的客户端。
+                    $this->accessTokens->revokeForClient($client->id, $now);
+                    $this->refreshTokens->revokeForClient($client->id, $now);
+                    $this->authorizationCodes->revokeUnusedForClient($client->id, $now);
+                    $this->pushedAuthorizationRequests->revokeUnusedForClient($client->id, $now);
+                }
+            }
+            $this->auditLogs->record([
+                'event_type' => 'oauth.application.status_changed',
+                'user_id' => $actorUserId,
+                'success' => true,
+                'details' => [
+                    'application_id' => $application->public_id,
+                    'status' => $status,
+                    'client_count' => count($result['clients']),
+                ],
+            ]);
+        });
+
         return $this->detail($publicId);
     }
 

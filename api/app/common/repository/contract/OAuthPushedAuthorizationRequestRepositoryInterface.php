@@ -26,4 +26,7 @@ interface OAuthPushedAuthorizationRequestRepositoryInterface
      * 条件更新是并发授权决定的安全边界，防止重复批准或拒绝同一请求。
      */
     public function consume(string $requestUriHash, DateTimeImmutable $usedAt): bool;
+
+    /** 作废客户端尚未使用的 PAR，避免配置变更后恢复旧授权参数。 */
+    public function revokeUnusedForClient(int $clientId, DateTimeImmutable $revokedAt): int;
 }

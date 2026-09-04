@@ -27,6 +27,8 @@ final class SystemSettingsServiceTest extends TestCase
         $configuredUrl = trim((string) config('mail.verification_url'));
         self::assertSame($configuredUrl === '' ? 'http://127.0.0.1:3000' : $configuredUrl, $items['site.public_url']['value']);
         self::assertSame('公开访问地址', $items['site.public_url']['label']);
+        self::assertTrue($items['site.homepage_enabled']['value']);
+        self::assertSame('展示系统首页', $items['site.homepage_enabled']['label']);
     }
 
     public function testStorageSettingsExposeDriversWithoutSecrets(): void

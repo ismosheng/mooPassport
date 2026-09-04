@@ -6,6 +6,8 @@ namespace app\oauth\service;
 
 use app\common\dto\AuditContext;
 use app\common\enum\GrantType;
+use app\common\enum\OAuthApplicationType;
+use app\common\enum\OAuthClientType;
 use app\common\enum\TokenEndpointAuthMethod;
 use app\common\enum\UserStatus;
 use app\common\exception\OAuthProtocolException;
@@ -15,6 +17,7 @@ use app\common\model\OAuthRefreshToken;
 use app\common\repository\contract\AccessTokenRepositoryInterface;
 use app\common\repository\contract\AuditLogRepositoryInterface;
 use app\common\repository\contract\AuthorizationCodeRepositoryInterface;
+use app\common\repository\contract\OAuthClientManagementRepositoryInterface;
 use app\common\repository\contract\RefreshTokenRepositoryInterface;
 use app\common\repository\contract\UserRepositoryInterface;
 use app\common\support\SecureToken;
@@ -33,6 +36,7 @@ final class TokenService
         private readonly AuthorizationCodeRepositoryInterface $authorizationCodes,
         private readonly AccessTokenRepositoryInterface $accessTokens,
         private readonly RefreshTokenRepositoryInterface $refreshTokens,
+        private readonly OAuthClientManagementRepositoryInterface $clientManagement,
         private readonly UserRepositoryInterface $users,
         private readonly AuditLogRepositoryInterface $auditLogs,
         private readonly SecureToken $secureToken,
@@ -40,6 +44,65 @@ final class TokenService
         private readonly IdTokenService $idTokens,
         private readonly TransactionManagerInterface $transactions,
     ) {
+    }
+
+    public function issueClientCredentials(
+        string $clientId,
+        ?string $clientSecret,
+        TokenEndpointAuthMethod $authenticationMethod,
+        ?string $requestedScope,
+        ?AuditContext $auditContext = null,
+    ): TokenResult {
+        $client = $this->clientValidation->authenticateTokenClient(
+            $clientId,
+            $clientSecret,
+            $authenticationMethod,
+        );
+        if (
+            $client->client_type !== OAuthClientType::Confidential
+            || $client->application_type !== OAuthApplicationType::Service
+            || !in_array(GrantType::ClientCredentials->value, $client->allowed_grant_types, true)
+        ) {
+            throw new OAuthProtocolException('unauthorized_client', '该客户端不允许使用客户端凭证授权。');
+        }
+
+        $allowedScopes = $this->clientManagement->scopeNames($client->id);
+        $scopes = $this->resolveClientCredentialScopes($allowedScopes, $requestedScope);
+        $accessToken = $this->secureToken->generate();
+        $accessTokenTtl = max(60, (int) $client->access_token_ttl);
+        $now = $this->now();
+
+        $this->transactions->run(function () use (
+            $client,
+            $scopes,
+            $accessToken,
+            $accessTokenTtl,
+            $now,
+            $auditContext,
+        ): void {
+            $this->accessTokens->create([
+                'token_hash' => $this->secureToken->hash($accessToken),
+                'client_id' => $client->id,
+                'user_id' => null,
+                'grant_type' => GrantType::ClientCredentials,
+                'scopes' => $scopes,
+                'expires_at' => $now->add(new DateInterval('PT' . $accessTokenTtl . 'S')),
+                'created_at' => $now,
+            ]);
+            $this->auditLogs->record([
+                'event_type' => 'oauth.token.issued',
+                'user_id' => null,
+                'client_id' => $client->id,
+                ...$this->auditAttributes($auditContext),
+                'success' => true,
+                'details' => [
+                    'grant_type' => GrantType::ClientCredentials->value,
+                    'refresh_token_issued' => false,
+                ],
+            ]);
+        });
+
+        return new TokenResult($accessToken, $accessTokenTtl, null, implode(' ', $scopes));
     }
 
     public function exchangeAuthorizationCode(
@@ -318,6 +381,30 @@ final class TokenService
             if (!in_array($scope, $originalScopes, true)) {
                 throw new OAuthProtocolException('invalid_scope', '刷新请求不能扩大原令牌的 Scope。');
             }
+        }
+
+        return $requested;
+    }
+
+    /**
+     * @param list<string> $allowedScopes
+     * @return list<string>
+     */
+    private function resolveClientCredentialScopes(array $allowedScopes, ?string $requestedScope): array
+    {
+        if ($allowedScopes !== ['service']) {
+            throw new OAuthProtocolException('invalid_scope', '客户端未登记有效的机器调用 Scope。');
+        }
+        if ($requestedScope === null || trim($requestedScope) === '') {
+            return $allowedScopes;
+        }
+        if (strlen($requestedScope) > 1000) {
+            throw new OAuthProtocolException('invalid_scope', 'scope 参数格式无效。');
+        }
+
+        $requested = preg_split('/ +/', trim($requestedScope), -1, PREG_SPLIT_NO_EMPTY);
+        if ($requested !== ['service']) {
+            throw new OAuthProtocolException('invalid_scope', '客户端凭证授权只能申请已登记的机器调用 Scope。');
         }
 
         return $requested;

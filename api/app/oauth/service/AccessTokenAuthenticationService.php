@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\oauth\service;
 
+use app\common\enum\GrantType;
+use app\common\enum\OAuthApplicationType;
 use app\common\enum\OAuthClientStatus;
 use app\common\enum\UserStatus;
 use app\common\exception\OAuthProtocolException;
@@ -36,18 +38,33 @@ final class AccessTokenAuthenticationService
             $this->secureToken->hash($rawToken),
             new DateTimeImmutable('now', new DateTimeZone('Asia/Shanghai')),
         );
-        if ($token === null || $token->user_id === null) {
+        if ($token === null) {
             throw $this->invalidToken();
         }
 
         $client = $this->clients->findById($token->client_id);
-        $user = $this->users->findById($token->user_id);
         if (
             $client === null
             || $client->status !== OAuthClientStatus::Active
-            || $user === null
-            || $user->status !== UserStatus::Active
         ) {
+            throw $this->invalidToken();
+        }
+
+        if ($token->user_id === null) {
+            if (
+                $token->grant_type !== GrantType::ClientCredentials
+                || $client->application_type !== OAuthApplicationType::Service
+                || !in_array(GrantType::ClientCredentials->value, $client->allowed_grant_types, true)
+                || !in_array('service', $token->scopes, true)
+            ) {
+                throw $this->invalidToken();
+            }
+
+            return new AccessTokenIdentity($token, $client, null, $token->scopes);
+        }
+
+        $user = $this->users->findById($token->user_id);
+        if ($user === null || $user->status !== UserStatus::Active) {
             throw $this->invalidToken();
         }
 

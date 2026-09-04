@@ -22,6 +22,9 @@ final class OidcMetadataServiceTest extends TestCase
             rtrim((string) config('oauth.issuer'), '/') . '/.well-known/jwks.json',
             $metadata['jwks_uri'],
         );
-        self::assertSame(['authorization_code', 'refresh_token'], $metadata['grant_types_supported']);
+        self::assertSame(
+            ['authorization_code', 'refresh_token', 'client_credentials'],
+            $metadata['grant_types_supported'],
+        );
     }
 }

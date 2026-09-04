@@ -238,12 +238,54 @@ try {
     );
     $assert(($introspection['active'] ?? true) === false, '重放发生后 Access Token 仍然有效。');
 
+    $serviceClient = $management->create($user->id, new CreateOAuthClientInput(
+        'OAuth 机器调用测试应用',
+        null,
+        'service',
+        [],
+        ['service'],
+    ));
+    $assert(is_string($serviceClient->plainSecret), 'Service 客户端没有签发 AppSecret。');
+    $expectOAuthError(
+        fn () => $tokens->issueClientCredentials(
+            $serviceClient->client->client_id,
+            $serviceClient->plainSecret,
+            TokenEndpointAuthMethod::ClientSecretBasic,
+            'service openid',
+        ),
+        'invalid_scope',
+        '客户端凭证授权扩大 Scope 没有被拒绝',
+    );
+    $machineToken = $tokens->issueClientCredentials(
+        $serviceClient->client->client_id,
+        $serviceClient->plainSecret,
+        TokenEndpointAuthMethod::ClientSecretBasic,
+        null,
+    );
+    $assert($machineToken->scope === 'service', '客户端凭证令牌 Scope 不正确。');
+    $assert($machineToken->refreshToken === null, '客户端凭证授权不应签发 Refresh Token。');
+    $assert($machineToken->idToken === null, '客户端凭证授权不应签发 ID Token。');
+    $machineIdentity = $container->get(AccessTokenAuthenticationService::class)
+        ->authenticate($machineToken->accessToken);
+    $assert($machineIdentity->user === null, '客户端凭证令牌不应关联用户身份。');
+    $assert($machineIdentity->hasScope('service'), '客户端凭证令牌缺少 service Scope。');
+    $machineIntrospection = $container->get(TokenIntrospectionService::class)->introspect(
+        $serviceClient->client->client_id,
+        $serviceClient->plainSecret,
+        TokenEndpointAuthMethod::ClientSecretBasic,
+        $machineToken->accessToken,
+        'access_token',
+    );
+    $assert(($machineIntrospection['active'] ?? false) === true, '客户端凭证令牌 introspection 未激活。');
+    $assert(!array_key_exists('sub', $machineIntrospection), '客户端凭证令牌不应包含用户 sub。');
+
     fwrite(STDOUT, "PASS authorization_code_pkce\n");
     fwrite(STDOUT, "PASS oauth_negative_security_cases\n");
     fwrite(STDOUT, "PASS authorization_denial_callback\n");
     fwrite(STDOUT, "PASS access_refresh_id_token\n");
     fwrite(STDOUT, "PASS bearer_identity\n");
     fwrite(STDOUT, "PASS refresh_rotation_replay\n");
+    fwrite(STDOUT, "PASS client_credentials\n");
 } finally {
     $connection->rollBack();
 }

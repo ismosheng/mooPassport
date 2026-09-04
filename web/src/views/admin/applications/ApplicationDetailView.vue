@@ -6,7 +6,7 @@ import javascript from 'highlight.js/lib/languages/javascript'
 import php from 'highlight.js/lib/languages/php'
 import xml from 'highlight.js/lib/languages/xml'
 import { useRoute, useRouter } from 'vue-router'
-import { getApplication, rotateOAuthClientSecret, updateApplication, updateOAuthClient, updateOAuthClientStatus, uploadApplicationLogo } from '../../../api/applications.js'
+import { getApplication, rotateOAuthClientSecret, updateApplication, updateApplicationStatus, updateOAuthClient, updateOAuthClientStatus, uploadApplicationLogo } from '../../../api/applications.js'
 import { useAdminAccessStore } from '../../../stores/adminAccess.js'
 
 hljs.registerLanguage('javascript', javascript)
@@ -64,6 +64,13 @@ async function toggleStatus(client) {
   try { await updateOAuthClientStatus(client.client_id, client.status === 'active' ? 'disabled' : 'active'); message.success('客户端状态已更新'); await load() }
   catch (error) { message.error(error.userMessage) }
 }
+function toggleApplicationStatus() {
+  const disabling = application.value.status === 'active'
+  dialog.warning({ title: disabling ? '禁用应用' : '启用应用', content: disabling ? '应用将立即停止访问，现有令牌和待处理授权请求会被撤销。' : '应用总开关将恢复，单独禁用的客户端和已撤销凭据不会恢复。', positiveText: '确认', negativeText: '取消', onPositiveClick: async () => {
+    try { await updateApplicationStatus(application.value.id, disabling ? 'disabled' : 'active'); message.success('应用状态已更新'); await load() }
+    catch (error) { message.error(error.userMessage) }
+  } })
+}
 async function copy(value) { await navigator.clipboard.writeText(value); message.success('已复制') }
 function highlighted(code, language) { return hljs.highlight(code || '', { language }).value }
 async function saveBasic() {
@@ -106,6 +113,7 @@ onUnmounted(() => guideScroller()?.removeEventListener('scroll', updateActiveGui
 <template>
   <div class="detail-page"><n-spin :show="loading"><template v-if="application">
     <header class="detail-header"><template v-if="!editingBasic"><div class="app-brand"><span><img v-if="application.logo_url" :src="application.logo_url" alt="" /><b v-else>{{ application.name.slice(0,1) }}</b></span><div><n-space align="center"><h1>{{ application.name }}</h1><n-tag :type="application.status === 'active' ? 'success' : 'default'">{{ application.status === 'active' ? '正常' : '已禁用' }}</n-tag></n-space><p>{{ application.description || '暂无应用说明' }}</p><div class="top-appids"><span v-for="client in clients" :key="client.client_id"><em>{{ client.application_type === 'service' ? 'API AppID' : '登录 AppID' }}</em><code class="inline-code">{{ client.client_id }}</code><n-button text type="primary" size="tiny" @click="copy(client.client_id)">复制</n-button></span></div></div></div><n-space><n-button v-if="access.has('admin.applications.update')" @click="editingBasic=true">编辑基础信息</n-button><n-button @click="router.push('/admin/applications')">返回列表</n-button></n-space></template><template v-else><div class="basic-editor"><div class="basic-logo"><span><img v-if="basicForm.logo_url" :src="basicForm.logo_url" alt="" /><b v-else>{{ basicForm.name.slice(0,1) || 'A' }}</b></span><n-upload :show-file-list="false" accept="image/png,image/jpeg,image/webp" :custom-request="uploadLogo"><n-button size="small" :loading="uploadingLogo">更换图标</n-button></n-upload></div><div class="basic-fields"><n-input v-model:value="basicForm.name" maxlength="100" placeholder="应用名称" /><n-input v-model:value="basicForm.description" type="textarea" maxlength="500" :autosize="{ minRows: 2, maxRows: 3 }" placeholder="应用说明" /></div></div><n-space><n-button @click="editingBasic=false">取消</n-button><n-button type="primary" :loading="savingBasic" :disabled="!basicForm.name.trim()" @click="saveBasic">保存基础信息</n-button></n-space></template></header>
+    <n-space v-if="access.has('admin.applications.status.update')" justify="end" class="application-actions"><n-button @click="toggleApplicationStatus">{{ application.status === 'active' ? '禁用应用' : '启用应用' }}</n-button></n-space>
     <n-tabs type="line" animated>
       <n-tab-pane name="config" tab="客户端配置"><div class="client-grid">
         <n-card v-for="client in clients" :key="client.client_id" :title="client.application_type === 'service' ? '服务端 API' : '用户登录'"><template #header-extra><n-tag :type="client.status === 'active' ? 'success' : 'default'">{{ client.status === 'active' ? '已启用' : '已禁用' }}</n-tag></template>
@@ -140,6 +148,7 @@ onUnmounted(() => guideScroller()?.removeEventListener('scroll', updateActiveGui
 .detail-page :deep(.n-tabs-pane-wrapper),.detail-page :deep(.n-tab-pane){overflow:visible!important}.guide-layout{overflow:visible}.guide-directory{position:sticky!important;top:12px!important;z-index:5;height:max-content;max-height:calc(100dvh - 142px);box-shadow:none}@media(max-width:900px){.guide-directory{position:static!important;max-height:none}}
 .guide-layout{height:max(480px,calc(100dvh - 238px));min-height:0;overflow:hidden}.guide-directory{position:static!important;max-height:none;overflow:hidden}.guide-content{height:100%;min-height:0;padding-right:5px;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}.guide-section{scroll-margin-top:8px}@media(max-width:900px){.guide-layout{height:auto;overflow:visible}.guide-content{height:auto;overflow:visible}}
 .endpoint-list :deep(.n-descriptions-table-header){width:132px;white-space:nowrap}.endpoint-value{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:12px}.endpoint-value code{display:block;min-width:0;overflow:hidden;color:var(--color-primary);font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.endpoint-value .n-button{flex:none}
+.application-actions{margin-top:12px}
 </style>
 
 

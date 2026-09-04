@@ -22,6 +22,10 @@ export function updateApplication(id, payload) {
   return http.put(`/admin/v1/applications/${encodeURIComponent(id)}`, payload)
 }
 
+export function updateApplicationStatus(id, status) {
+  return http.put(`/admin/v1/applications/${encodeURIComponent(id)}/status`, { status })
+}
+
 export function deleteApplication(id) {
   return http.delete(`/admin/v1/applications/${encodeURIComponent(id)}`)
 }

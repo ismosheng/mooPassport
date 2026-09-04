@@ -15,7 +15,7 @@ final readonly class AccessTokenIdentity
     public function __construct(
         public OAuthAccessToken $token,
         public OAuthClient $client,
-        public User $user,
+        public ?User $user,
         public array $scopes,
     ) {
     }

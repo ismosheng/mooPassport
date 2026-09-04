@@ -12,6 +12,7 @@ use app\common\enum\GrantType;
  * @property int $id
  * @property int $client_id
  * @property int|null $user_id
+ * @property GrantType $grant_type
  * @property list<string> $scopes
  * @property \DateTimeImmutable|null $revoked_at
  * @property \DateTimeImmutable $expires_at

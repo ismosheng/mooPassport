@@ -2,7 +2,7 @@ import LoginView from '../views/auth/LoginView.vue'
 import RegisterView from '../views/auth/RegisterView.vue'
 
 export const routes = [
-  { path: '/', redirect: '/account' },
+  { path: '/', name: 'home', component: () => import('../views/home/HomeView.vue') },
   { path: '/login', name: 'login', component: LoginView, meta: { authBackground: true } },
   { path: '/register', name: 'register', component: RegisterView, meta: { authBackground: true } },
   { path: '/forgot-password', name: 'forgot-password', component: () => import('../views/auth/ForgotPasswordView.vue'), meta: { authBackground: true } },

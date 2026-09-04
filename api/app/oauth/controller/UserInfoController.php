@@ -38,7 +38,7 @@ final class UserInfoController
     private function respond(Request $request): Response
     {
         $identity = $request->context[AuthenticateAccessToken::CONTEXT_KEY] ?? null;
-        if (!$identity instanceof AccessTokenIdentity) {
+        if (!$identity instanceof AccessTokenIdentity || $identity->user === null) {
             return $this->invalidToken();
         }
         if (!$identity->hasScope('openid')) {

@@ -8,6 +8,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3000,
     proxy: {
+      '/api/v1': 'http://127.0.0.1:8787',
       '/admin/v1': 'http://127.0.0.1:8787',
       '/passport': 'http://127.0.0.1:8787',
       '/oauth': {

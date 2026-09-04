@@ -13,7 +13,7 @@ const values = reactive({})
 const versions = reactive({})
 
 const groupMeta = {
-  site: { title: '基础设置', description: '站点名称与公开访问地址' },
+  site: { title: '基础设置', description: '站点名称、公开地址与首页展示' },
   auth: { title: '账号安全', description: '注册开关与登录会话策略' },
   oauth: { title: 'OAuth / OIDC', description: '令牌有效期与协议策略' },
   audit: { title: '安全审计', description: '在线审计数据保留策略' },

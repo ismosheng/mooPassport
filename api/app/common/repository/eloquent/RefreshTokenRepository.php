@@ -53,6 +53,15 @@ final class RefreshTokenRepository implements RefreshTokenRepositoryInterface
             ->update(['revoked_at' => $revokedAt]);
     }
 
+    public function revokeForClientAndUser(int $clientId, int $userId, DateTimeImmutable $revokedAt): int
+    {
+        return OAuthRefreshToken::query()
+            ->where('client_id', $clientId)
+            ->where('user_id', $userId)
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => $revokedAt]);
+    }
+
     public function revokeForUser(int $userId, DateTimeImmutable $revokedAt): int
     {
         return OAuthRefreshToken::query()

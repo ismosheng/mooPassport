@@ -45,6 +45,16 @@ function rememberContext(data) {
   if (data?.client) authorization.value = { client: data.client, scopes: data.scopes || [], consent_required: true }
 }
 
+function notifyPopupError(error, description) {
+  if (!popupDisplay.value || window.parent === window || !document.referrer) return
+  try {
+    const parentOrigin = new URL(document.referrer).origin
+    window.parent.postMessage({ type: 'moo-oauth-error', result: { error, description } }, parentOrigin)
+  } catch {
+    // 没有可信父页面来源时只在当前页展示错误，绝不向任意 origin 广播。
+  }
+}
+
 async function inspect() {
   loading.value = true
   errorMessage.value = ''
@@ -61,6 +71,7 @@ async function inspect() {
       rememberContext(data)
     } else {
       errorMessage.value = data?.error_description || error.userMessage || '授权请求无效。'
+      notifyPopupError(data?.error || 'invalid_request', errorMessage.value)
     }
   } finally { loading.value = false }
 }

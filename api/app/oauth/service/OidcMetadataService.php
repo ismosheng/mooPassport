@@ -33,7 +33,7 @@ final class OidcMetadataService
             'introspection_endpoint' => $issuer . '/oauth/introspect',
             'response_types_supported' => ['code'],
             'response_modes_supported' => ['query'],
-            'grant_types_supported' => ['authorization_code', 'refresh_token'],
+            'grant_types_supported' => ['authorization_code', 'refresh_token', 'client_credentials'],
             'subject_types_supported' => ['public'],
             'id_token_signing_alg_values_supported' => ['RS256'],
             'token_endpoint_auth_methods_supported' => [

@@ -83,6 +83,9 @@
     root.appendChild(style)
     document.body.appendChild(root)
     document.documentElement.style.overflow = 'hidden'
+    const iframe = root.querySelector('iframe')
+    const callbackOrigin = new URL(config.redirectUri).origin
+    const authorizationOrigin = new URL(config.authorizeUrl).origin
 
     const close = () => {
       global.removeEventListener('message', receive)
@@ -90,14 +93,17 @@
       document.documentElement.style.overflow = ''
     }
     const receive = (event) => {
-      if (event.origin !== new URL(config.redirectUri).origin || event.data?.type !== 'moo-oauth-callback') return
+      if (event.source !== iframe.contentWindow) return
+      const callback = event.origin === callbackOrigin && event.data?.type === 'moo-oauth-callback'
+      const authorizationError = event.origin === authorizationOrigin && event.data?.type === 'moo-oauth-error'
+      if (!callback && !authorizationError) return
       close()
       global.dispatchEvent(new CustomEvent('moo-auth:callback', { detail: event.data.result }))
     }
     global.addEventListener('message', receive)
     root.querySelector('button').addEventListener('click', close)
     root.querySelector('.moo-auth-mask').addEventListener('click', close)
-    root.querySelector('iframe').src = url
+    iframe.src = url
     return { close }
   }
 
