@@ -59,9 +59,7 @@ final class UserInfoController
         if ($identity->hasScope('profile')) {
             $claims['name'] = $user->display_name;
             $claims['preferred_username'] = $user->username;
-            if ($user->avatar_url !== null) {
-                $claims['picture'] = $user->avatar_url;
-            }
+            $claims['picture'] = $this->pictureUrl($user);
         }
         if ($identity->hasScope('email')) {
             $claims['email'] = $user->email;
@@ -76,6 +74,19 @@ final class UserInfoController
         return json($claims)
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('Pragma', 'no-cache');
+    }
+
+    private function pictureUrl(\app\common\model\User $user): string
+    {
+        if ($user->avatar_url !== null && trim($user->avatar_url) !== '') {
+            return $user->avatar_url;
+        }
+
+        $name = trim((string) $user->display_name);
+        $label = mb_substr($name !== '' ? $name : (string) $user->username, 0, 1);
+
+        return rtrim((string) config('oauth.issuer'), '/')
+            . '/oauth/avatar/default?label=' . rawurlencode($label);
     }
 
     private function invalidToken(): Response

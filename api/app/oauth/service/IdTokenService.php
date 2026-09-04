@@ -46,9 +46,7 @@ final class IdTokenService
         if (in_array('profile', $scopes, true)) {
             $claims['name'] = $user->display_name;
             $claims['preferred_username'] = $user->username;
-            if ($user->avatar_url !== null) {
-                $claims['picture'] = $user->avatar_url;
-            }
+            $claims['picture'] = $this->pictureUrl($user);
         }
         if (in_array('email', $scopes, true)) {
             $claims['email'] = $user->email;
@@ -75,6 +73,19 @@ final class IdTokenService
     {
         // RS256 的 at_hash 使用访问令牌 SHA-256 摘要的左半部分。
         return $this->base64Url(substr(hash('sha256', $accessToken, true), 0, 16));
+    }
+
+    private function pictureUrl(User $user): string
+    {
+        if ($user->avatar_url !== null && trim($user->avatar_url) !== '') {
+            return $user->avatar_url;
+        }
+
+        $name = trim((string) $user->display_name);
+        $label = mb_substr($name !== '' ? $name : (string) $user->username, 0, 1);
+
+        return rtrim((string) config('oauth.issuer'), '/')
+            . '/oauth/avatar/default?label=' . rawurlencode($label);
     }
 
     /** @param array<string, mixed> $value */

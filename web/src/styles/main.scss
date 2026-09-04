@@ -1,6 +1,7 @@
 html { font-size: var(--font-size-base); }
 body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--color-text-primary); background: var(--color-bg-page); font-family: var(--font-family); font-size: var(--font-size-base); line-height: var(--line-height-base); }
 * { box-sizing: border-box; }
+button, input, textarea, select { font-family: inherit; }
 a { color: var(--color-primary); text-decoration: none; font-weight: 500; }
 a:hover { color: var(--color-primary-hover); }
 .brand-link { display: inline-flex; align-items: center; gap: 9px; color: #000; font-size: var(--font-size-md); font-weight: 600; }
@@ -72,8 +73,10 @@ a:hover { color: var(--color-primary-hover); }
   border-bottom: 1px solid var(--color-border); margin-bottom: 12px;
 }
 .account-sidebar-profile .account-avatar { width: 42px; height: 42px; font-size: var(--font-size-md); }
-.account-sidebar-profile strong { display: block; font-size: var(--font-size-sm); font-weight: 600; }
-.account-sidebar-profile span { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
+.account-sidebar-profile > div:last-child { min-width: 0; }
+.account-sidebar-profile strong, .account-sidebar-profile > div:last-child span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-sidebar-profile strong { font-size: var(--font-size-sm); font-weight: 600; }
+.account-sidebar-profile > div:last-child span { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 .account-sidebar-nav { display: grid; gap: 4px; }
 .account-nav-item {
   padding: 10px 12px; display: flex; align-items: center; gap: 10px;
@@ -89,12 +92,13 @@ a:hover { color: var(--color-primary-hover); }
 .account-nav-item em { margin-left: auto; color: var(--color-text-tertiary); font-size: var(--font-size-xs); font-style: normal; font-weight: 400; }
 .account-main { min-width: 0; }
 .account-page { display: grid; gap: 16px; width: 100%; }
-.account-avatar { width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; border-radius: var(--radius-lg); color: #fff; background: var(--color-primary); font-size: var(--font-size-xl); font-weight: 600; }
+.account-avatar { width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; border-radius: var(--radius-lg); color: var(--color-text-inverse); background: var(--color-primary); font-size: var(--font-size-xl); font-weight: 600; }
 .account-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .account-avatar-lg { width: 56px; height: 56px; border-radius: var(--radius-xl); font-size: var(--font-size-xl); }
 .account-overview-card { padding-top: 24px; }
 .account-hero-main { padding: 0 24px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--color-border); }
 .account-hero-copy { min-width: 0; }
+.account-hero-copy h2, .account-hero-username { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-hero-copy h2 { margin: 0; font-size: var(--font-size-lg); font-weight: 600; line-height: 1.3; }
 .account-hero-username { margin: 4px 0 0; color: var(--color-text-tertiary); font-size: var(--font-size-sm); }
 .account-hero-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -112,6 +116,7 @@ a:hover { color: var(--color-primary-hover); }
 .account-overview dd { margin: 0; color: var(--color-text-primary); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .account-overview-id { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .account-overview-id code {
+  min-width: 0; overflow-wrap: anywhere;
   padding: 2px 6px; border-radius: var(--radius-sm); background: var(--color-bg-subtle);
   color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--font-size-xs);
@@ -235,15 +240,7 @@ a:hover { color: var(--color-primary-hover); }
 @media (max-width: 860px) {
   .auth-panel { padding: 32px 20px; }
   .account-frame { grid-template-columns: 1fr; width: min(calc(100% - 32px), var(--content-width)); }
-  .account-sidebar { position: static; }
-  .account-sidebar-profile { display: none; }
-  .account-sidebar-nav {
-    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px;
-    scrollbar-width: thin;
-  }
-  .account-nav-item { flex: 0 0 auto; white-space: nowrap; }
-  .account-nav-item.is-nested { margin-left: 0; padding-left: 12px; }
-  .account-nav-item em { display: none; }
+  .account-sidebar { display: none; }
   .account-overview > div { grid-template-columns: 1fr; gap: 4px; }
 }
 @media (max-width: 760px) {
@@ -265,10 +262,15 @@ a:hover { color: var(--color-primary-hover); }
   .auth-card { padding: 28px 24px; border: 0; box-shadow: none; }
   .auth-card header h2 { font-size: var(--font-size-lg); }
   .account-topbar { height: 56px; padding: 0 16px; }
-  .account-frame { width: min(calc(100% - 32px), var(--content-width)); margin: 16px auto 32px; gap: 12px; }
-  .account-hero-main { align-items: flex-start; gap: 14px; }
+  .account-frame { width: calc(100% - 24px); margin: 12px auto 24px; }
+  .account-main { padding: 0; }
+  .account-hero-main { padding: 0 18px 18px; align-items: flex-start; gap: 12px; }
   .account-avatar-lg { width: 48px; height: 48px; font-size: var(--font-size-lg); }
   .account-hero-copy h2 { font-size: var(--font-size-md); }
+  .account-overview-card { padding-top: 18px; }
+  .account-overview { padding: 2px 18px 16px; }
+  .account-overview-id { align-items: flex-start; }
+  .account-overview-id .n-button { flex: 0 0 auto; }
   .account-form-card { padding: 20px 18px; }
   .account-form-card .n-form { max-width: none; }
 }

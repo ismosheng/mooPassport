@@ -1,6 +1,5 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import 'vfonts/Lato.css'
 import './styles/tokens.scss'
 import './styles/main.scss'
 import App from './App.vue'

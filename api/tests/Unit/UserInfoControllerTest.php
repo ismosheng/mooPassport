@@ -45,9 +45,22 @@ final class UserInfoControllerTest extends TestCase
         $claims = $this->claims(['openid', 'profile']);
 
         self::assertSame($this->user->public_id, $claims['sub']);
+        self::assertSame(
+            rtrim((string) config('oauth.issuer'), '/') . '/oauth/avatar/default?label=U',
+            $claims['picture'],
+        );
         self::assertArrayNotHasKey('real_name', $claims);
         self::assertArrayNotHasKey('identity_document_number', $claims);
         self::assertArrayNotHasKey('realname_verified', $claims);
+    }
+
+    public function testReturnsCustomPictureForProfileScope(): void
+    {
+        $this->user->avatar_url = 'https://cdn.example.invalid/avatar.webp';
+
+        $claims = $this->claims(['openid', 'profile']);
+
+        self::assertSame('https://cdn.example.invalid/avatar.webp', $claims['picture']);
     }
 
     public function testReturnsMaskedClaimsForRealnameScope(): void

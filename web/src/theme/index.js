@@ -22,6 +22,7 @@ export const themeOverrides = {
     dividerColor: '#e5e6eb',
     borderRadius: '6px',
     borderRadiusSmall: '4px',
+    fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", Arial, sans-serif',
     fontSize: '14px',
     fontSizeMini: '12px',
     fontSizeTiny: '12px',
